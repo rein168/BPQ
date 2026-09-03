@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BPQ - Session Queue</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    body {
+      background: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .topbar {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 15px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .glass-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .player-item {
+      padding: 15px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    }
+    .player-item:hover {
+      background-color: #f9f9f9;
+    }
+    .skill-badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .skill-beginner {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .skill-intermediate {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .btn-action {
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .court-section {
+      margin-bottom: 25px;
+    }
+    .court-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px 10px 0 0;
+      font-weight: 600;
+    }
+    .court-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: #999;
+    }
+    .match-display {
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .match-player {
+      padding: 10px 15px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .timer {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      color: #667eea;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-waiting {
+      background-color: #e3f2fd;
+      color: #1976d2;
+    }
+    .status-playing {
+      background-color: #f3e5f5;
+      color: #7b1fa2;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <a href="/" class="btn btn-light border rounded-3">
+            <i class="bi bi-arrow-left"></i>
+          </a>
+          <div>
+            <h4 class="mb-0" id="sessionName">Loading...</h4>
+            <small class="text-muted">Session Queue Management</small>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary btn-action" onclick="allocateCourts()" id="allocateBtn">
+            <i class="bi bi-lightning-fill"></i> Auto-Allocate
+          </button>
+          <button class="btn btn-outline-danger btn-action" onclick="endSession()">
+            <i class="bi bi-stop-circle"></i> End Session
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid py-4">
+    <!-- Import Roster Section -->
+    <div class="glass-card p-4 mb-4">
+      <h5 class="mb-3"><i class="bi bi-file-text"></i> Import Player Roster</h5>
+      <p class="text-muted small">Paste player names (one per line), then assign skill levels.</p>
+      <form id="importForm" class="d-flex gap-2 flex-wrap">
+        <textarea
+          id="playerList"
+          class="form-control"
+          rows="6"
+          placeholder="Paste player names here, one per line"
+          style="flex: 1; min-width: 250px;"
+        ></textarea>
+        <div class="d-flex flex-column gap-2" style="min-width: 150px;">
+          <select id="skillLevel" class="form-select" required>
+            <option value="">Select Skill Level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+          </select>
+          <button type="submit" class="btn btn-success btn-action flex-grow-1">
+            <i class="bi bi-upload"></i> Import
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="row">
+      <!-- Courts Section -->
+      <div class="col-lg-8 mb-4">
+        <div class="glass-card">
+          <div class="court-header">
+            <i class="bi bi-grid-3x3-gap"></i> Courts
+          </div>
+          <div id="courtsContainer" class="p-3">
+            <div class="court-empty">
+              <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+              <p class="mt-2">No courts allocated yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue Section -->
+      <div class="col-lg-4 mb-4">
+        <div class="glass-card">
+          <div class="court-header">
+            <i class="bi bi-hourglass-split"></i> Waiting Queue
+          </div>
+          <div id="queueContainer" class="p-3">
+            <div class="court-empty">
+              <p class="mt-2">Queue is empty</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const sessionId = window.location.pathname.split('/').pop();
+    const socket = io();
+    let sessionState = null;
+
+    // Join session
+    socket.emit('join-session', parseInt(sessionId));
+
+    // Listen for session state updates
+    socket.on(`session:${sessionId}`, (data) => {
+      sessionState = data;
+      updateUI();
+    });
+
+    // Import player roster
+    document.getElementById('importForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const playerNames = document.getElementById('playerList').value.trim().split('\n').filter(n => n.trim());
+      const skillLevel = document.getElementById('skillLevel').value;
+
+      if (!playerNames.length || !skillLevel) {
+        alert('Please enter player names and select skill level');
+        return;
+      }
+
+      const players = playerNames.map(name => ({
+        name: name.trim(),
+        skill_level: skillLevel
+      }));
+
+      try {
+        const response = await fetch('/api/players/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), players })
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert(`Imported ${data.imported} players!`);
+          document.getElementById('playerList').value = '';
+          socket.emit('get-session-state', parseInt(sessionId));
+        }
+      } catch (err) {
+        alert('Error importing players: ' + err.message);
+      }
+    });
+
+    async function allocateCourts() {
+      try {
+        const response = await fetch('/api/queue/allocate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (data.allocated.length > 0) {
+          alert(`Allocated ${data.allocated.length} court(s)!`);
+        } else {
+          alert(data.message);
+        }
+      } catch (err) {
+        alert('Error allocating courts: ' + err.message);
+      }
+    }
+
+    async function finishMatch(courtId) {
+      if (!confirm('Mark this game as finished?')) return;
+
+      try {
+        const response = await fetch(`/api/queue/${courtId}/finish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert(`Game finished! Duration: ${(data.durationMs / 1000 / 60).toFixed(1)} minutes`);
+        }
+      } catch (err) {
+        alert('Error finishing match: ' + err.message);
+      }
+    }
+
+    async function endSession() {
+      if (!confirm('End this session? This action cannot be undone.')) return;
+
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+          window.location.href = '/';
+        }
+      } catch (err) {
+        alert('Error ending session: ' + err.message);
+      }
+    }
+
+    function updateUI() {
+      if (!sessionState) return;
+
+      const { session, players, courts } = sessionState;
+
+      // Update session name
+      document.getElementById('sessionName').textContent = session.name;
+
+      // Update courts display
+      const courtsContainer = document.getElementById('courtsContainer');
+      if (!courts || courts.length === 0) {
+        courtsContainer.innerHTML = '<div class="court-empty"><p class="mt-2">No courts allocated yet</p></div>';
+      } else {
+        courtsContainer.innerHTML = courts
+          .map(
+            (courtData) => `
+          <div class="court-section">
+            <div class="court-header d-flex justify-content-between align-items-center">
+              <span>${courtData.court.name}</span>
+              ${courtData.match ? `<span class="badge bg-light text-dark">⏱️ Playing</span>` : ''}
+            </div>
+            ${courtData.match
+              ? `
+              <div class="match-display">
+                <div class="mb-3">
+                  <strong>Players:</strong>
+                  ${courtData.match.player_ids
+                    .split(',')
+                    .map((pid) => {
+                      const player = players.find((p) => p.id == pid);
+                      return player
+                        ? `<div class="match-player">${player.name} <span class="skill-badge skill-${player.skill_level.toLowerCase()}">${player.skill_level}</span></div>`
+                        : '';
+                    })
+                    .join('')}
+                </div>
+                <button class="btn btn-success w-100 btn-action" onclick="finishMatch(${courtData.court.id})">
+                  <i class="bi bi-check-circle"></i> Game Finished
+                </button>
+              </div>
+            `
+              : '<div class="court-empty" style="padding: 30px 20px; font-size: 0.9rem;">Waiting for allocation</div>'
+            }
+          </div>
+        `
+          )
+          .join('');
+      }
+
+      // Update queue display
+      const waitingPlayers = players.filter((p) => p.status === 'waiting');
+      const queueContainer = document.getElementById('queueContainer');
+      if (waitingPlayers.length === 0) {
+        queueContainer.innerHTML = '<div class="court-empty"><p class="mt-2">Queue is empty</p></div>';
+      } else {
+        queueContainer.innerHTML = waitingPlayers
+          .map(
+            (player) => `
+          <div class="player-item">
+            <div>
+              <strong>${player.name}</strong>
+              <span class="skill-badge skill-${player.skill_level.toLowerCase()} ms-2">${player.skill_level}</span>
+            </div>
+          </div>
+        `
+          )
+          .join('');
+      }
+    }
+
+    // Initial state request
+    socket.emit('get-session-state', parseInt(sessionId));
+  </script>
+</body>
+</html>
