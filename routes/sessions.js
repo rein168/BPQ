@@ -3,7 +3,7 @@ const router = express.Router();
 const sessionService = require('../services/sessionService');
 
 // Create a new session
-router.post('/', async (req, res) => {
+router.post('/', (req, res) => {
   try {
     const { name } = req.body;
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Session name required' });
@@ -12,7 +12,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Session name must be 1-100 characters' });
     }
 
-    const sessionId = await sessionService.createSession(trimmedName);
+    const sessionId = sessionService.createSession(trimmedName);
     res.json({ success: true, sessionId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -20,9 +20,9 @@ router.post('/', async (req, res) => {
 });
 
 // Get all sessions
-router.get('/', async (req, res) => {
+router.get('/', (req, res) => {
   try {
-    const sessions = await sessionService.getAllSessions();
+    const sessions = sessionService.getAllSessions();
     res.json({ sessions });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -30,9 +30,9 @@ router.get('/', async (req, res) => {
 });
 
 // Get specific session
-router.get('/:sessionId', async (req, res) => {
+router.get('/:sessionId', (req, res) => {
   try {
-    const session = await sessionService.getSession(req.params.sessionId);
+    const session = sessionService.getSession(req.params.sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json({ session });
   } catch (err) {
@@ -41,9 +41,9 @@ router.get('/:sessionId', async (req, res) => {
 });
 
 // End session
-router.post('/:sessionId/end', async (req, res) => {
+router.post('/:sessionId/end', (req, res) => {
   try {
-    await sessionService.endSession(req.params.sessionId);
+    sessionService.endSession(req.params.sessionId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -51,9 +51,9 @@ router.post('/:sessionId/end', async (req, res) => {
 });
 
 // Get match history for session
-router.get('/:sessionId/history', async (req, res) => {
+router.get('/:sessionId/history', (req, res) => {
   try {
-    const history = await sessionService.getMatchHistory(req.params.sessionId);
+    const history = sessionService.getMatchHistory(req.params.sessionId);
     res.json({ history });
   } catch (err) {
     res.status(500).json({ error: err.message });

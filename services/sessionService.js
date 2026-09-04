@@ -3,348 +3,290 @@ const { v4: uuidv4 } = require('uuid');
 
 let io;
 
+// Prepared statements (lazy-initialized after db is ready)
+let stmts = null;
+
+function prepareStatements() {
+  if (stmts) return stmts;
+  stmts = {
+    // Sessions
+    createSession: db.prepare('INSERT INTO sessions (name, status) VALUES (?, ?)'),
+    getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
+    getAllSessions: db.prepare('SELECT * FROM sessions ORDER BY created_at DESC'),
+    endSession: db.prepare('UPDATE sessions SET status = ?, ended_at = ? WHERE id = ?'),
+
+    // Players
+    insertPlayer: db.prepare(
+      'INSERT INTO players (session_id, name, skill_level, status, position) VALUES (?, ?, ?, ?, ?)'
+    ),
+    getSessionPlayers: db.prepare('SELECT * FROM players WHERE session_id = ? ORDER BY position ASC'),
+    updatePlayerSkill: db.prepare('UPDATE players SET skill_level = ? WHERE id = ?'),
+    updatePlayerStatus: db.prepare('UPDATE players SET status = ? WHERE id = ?'),
+    updatePlayersPlaying: null, // built dynamically per-call
+
+    // Courts
+    getAllCourts: db.prepare("SELECT * FROM courts WHERE status = ? ORDER BY id ASC"),
+    createCourt: db.prepare('INSERT INTO courts (name, uuid) VALUES (?, ?)'),
+
+    // Courts in use
+    insertCourtInUse: db.prepare(
+      'INSERT INTO courts_in_use (session_id, court_id, match_started_at) VALUES (?, ?, ?)'
+    ),
+    getCourtInUse: db.prepare(
+      'SELECT * FROM courts_in_use WHERE session_id = ? AND court_id = ? ORDER BY id DESC LIMIT 1'
+    ),
+    getOccupiedCourtIds: db.prepare(
+      'SELECT DISTINCT court_id FROM courts_in_use WHERE session_id = ?'
+    ),
+    deleteCourtInUse: db.prepare('DELETE FROM courts_in_use WHERE id = ?'),
+
+    // Match players (junction table)
+    insertMatchPlayer: db.prepare(
+      'INSERT INTO match_players (court_in_use_id, player_id) VALUES (?, ?)'
+    ),
+    getMatchPlayerIds: db.prepare(
+      'SELECT player_id FROM match_players WHERE court_in_use_id = ?'
+    ),
+    insertHistoryMatchPlayer: db.prepare(
+      'INSERT INTO match_players (match_history_id, player_id) VALUES (?, ?)'
+    ),
+
+    // Match history
+    insertMatchHistory: db.prepare(
+      'INSERT INTO match_history (session_id, court_id, duration_ms) VALUES (?, ?, ?)'
+    ),
+    getMatchHistory: db.prepare(
+      'SELECT * FROM match_history WHERE session_id = ? ORDER BY completed_at DESC LIMIT ?'
+    ),
+    getMatchHistoryPlayers: db.prepare(
+      'SELECT mp.match_history_id, mp.player_id, p.name, p.skill_level FROM match_players mp JOIN players p ON p.id = mp.player_id WHERE mp.match_history_id = ?'
+    ),
+  };
+  return stmts;
+}
+
 const sessionService = {
   init(socketIo) {
     io = socketIo;
+    prepareStatements();
   },
 
   // ===== SESSION MANAGEMENT =====
-  async createSession(name) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO sessions (name, status) VALUES (?, ?)',
-        [name, 'active'],
-        function(err) {
-          if (err) return reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+  createSession(name) {
+    const s = prepareStatements();
+    const result = s.createSession.run(name, 'active');
+    return result.lastInsertRowid;
   },
 
-  async getSession(sessionId) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        'SELECT * FROM sessions WHERE id = ?',
-        [sessionId],
-        (err, row) => (err ? reject(err) : resolve(row || null))
-      );
-    });
+  getSession(sessionId) {
+    const s = prepareStatements();
+    return s.getSession.get(sessionId) || null;
   },
 
-  async getAllSessions() {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT * FROM sessions ORDER BY created_at DESC',
-        (err, rows) => (err ? reject(err) : resolve(rows || []))
-      );
-    });
+  getAllSessions() {
+    const s = prepareStatements();
+    return s.getAllSessions.all();
   },
 
-  async endSession(sessionId) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE sessions SET status = ?, ended_at = ? WHERE id = ?',
-        ['ended', Date.now(), sessionId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+  endSession(sessionId) {
+    const s = prepareStatements();
+    s.endSession.run('ended', Date.now(), sessionId);
   },
 
   // ===== PLAYER ROSTER MANAGEMENT =====
-  async importPlayerRoster(sessionId, players) {
-    // players: [{ name, skill_level }, ...]
-    return new Promise((resolve, reject) => {
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        let completed = 0;
-        const total = players.length;
+  importPlayerRoster(sessionId, players) {
+    if (!players || players.length === 0) return 0;
 
-        players.forEach((player, index) => {
-          db.run(
-            'INSERT INTO players (session_id, name, skill_level, status, position) VALUES (?, ?, ?, ?, ?)',
-            [sessionId, player.name, player.skill_level, 'waiting', index + 1],
-            (err) => {
-              if (err) {
-                db.run('ROLLBACK');
-                return reject(err);
-              }
-              completed++;
-              if (completed === total) {
-                db.run('COMMIT', (err) => {
-                  if (err) return reject(err);
-                  this.broadcastSessionState(sessionId);
-                  resolve(total);
-                });
-              }
-            }
-          );
-        });
-      });
+    const s = prepareStatements();
+    const insertMany = db.transaction((playerList) => {
+      for (let i = 0; i < playerList.length; i++) {
+        const p = playerList[i];
+        s.insertPlayer.run(sessionId, p.name, p.skill_level, 'waiting', i + 1);
+      }
     });
+
+    insertMany(players);
+    this.broadcastSessionState(sessionId);
+    return players.length;
   },
 
-  async getSessionPlayers(sessionId) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT * FROM players WHERE session_id = ? ORDER BY position ASC',
-        [sessionId],
-        (err, rows) => (err ? reject(err) : resolve(rows || []))
-      );
-    });
+  getSessionPlayers(sessionId) {
+    const s = prepareStatements();
+    return s.getSessionPlayers.all(sessionId);
   },
 
-  async updatePlayerSkill(playerId, skillLevel) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE players SET skill_level = ? WHERE id = ?',
-        [skillLevel, playerId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+  updatePlayerSkill(playerId, skillLevel) {
+    const s = prepareStatements();
+    s.updatePlayerSkill.run(skillLevel, playerId);
   },
 
-  async updatePlayerStatus(playerId, status) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE players SET status = ? WHERE id = ?',
-        [status, playerId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+  updatePlayerStatus(playerId, status) {
+    const s = prepareStatements();
+    s.updatePlayerStatus.run(status, playerId);
   },
 
   // ===== COURT ALLOCATION & QUEUEING =====
-  async getAllCourts() {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT * FROM courts WHERE status = ? ORDER BY id ASC',
-        ['active'],
-        (err, rows) => (err ? reject(err) : resolve(rows || []))
-      );
-    });
+  getAllCourts() {
+    const s = prepareStatements();
+    return s.getAllCourts.all('active');
   },
 
-  async createCourt(name) {
-    return new Promise((resolve, reject) => {
-      const uuid = uuidv4();
-      db.run(
-        'INSERT INTO courts (name, uuid) VALUES (?, ?)',
-        [name, uuid],
-        function(err) {
-          if (err) return reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+  createCourt(name) {
+    const s = prepareStatements();
+    const uuid = uuidv4();
+    const result = s.createCourt.run(name, uuid);
+    return result.lastInsertRowid;
   },
 
-  // Get all courts currently in use for a session
-  async getOccupiedCourtIds(sessionId) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT DISTINCT court_id FROM courts_in_use WHERE session_id = ?',
-        [sessionId],
-        (err, rows) => (err ? reject(err) : resolve((rows || []).map(r => r.court_id)))
-      );
-    });
+  getOccupiedCourtIds(sessionId) {
+    const s = prepareStatements();
+    return s.getOccupiedCourtIds.all(sessionId).map(r => r.court_id);
   },
 
   // Smart court allocation based on skill levels
-  async autoAllocateCourts(sessionId) {
-    try {
-      const players = await this.getSessionPlayers(sessionId);
-      const waitingPlayers = players.filter(p => p.status === 'waiting');
+  autoAllocateCourts(sessionId) {
+    const players = this.getSessionPlayers(sessionId);
+    const waitingPlayers = players.filter(p => p.status === 'waiting');
 
-      if (waitingPlayers.length < 4) {
-        return { allocated: [], message: 'Not enough players for a game' };
-      }
-
-      const allCourts = await this.getAllCourts();
-      const occupiedIds = await this.getOccupiedCourtIds(sessionId);
-      const courts = allCourts.filter(c => !occupiedIds.includes(c.id));
-
-      if (courts.length === 0) {
-        return { allocated: [], message: 'All courts are occupied' };
-      }
-
-      const allocated = [];
-
-      // Separate by skill level
-      const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
-      const intermediate = waitingPlayers.filter(p => p.skill_level === 'Intermediate');
-
-      let courtIndex = 0;
-      let gameAssignments = [];
-
-      // Rule 1: Try to group beginners together (4 players = 1 court)
-      while (beginners.length >= 4 && courtIndex < courts.length) {
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          players: beginners.splice(0, 4),
-          type: 'beginner'
-        });
-        courtIndex++;
-      }
-
-      // Rule 2: Try to group intermediate together
-      while (intermediate.length >= 4 && courtIndex < courts.length) {
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          players: intermediate.splice(0, 4),
-          type: 'intermediate'
-        });
-        courtIndex++;
-      }
-
-      // Rule 3: Mix remaining players if possible
-      const remaining = [...beginners, ...intermediate];
-      while (remaining.length >= 4 && courtIndex < courts.length) {
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          players: remaining.splice(0, 4),
-          type: 'mixed'
-        });
-        courtIndex++;
-      }
-
-      // Save to courts_in_use and update player status
-      for (const assignment of gameAssignments) {
-        await this.startCourt(sessionId, assignment.courtId, assignment.players);
-        allocated.push(assignment);
-      }
-
-      await this.broadcastSessionState(sessionId);
-      return { allocated, message: `Allocated ${allocated.length} court(s)` };
-    } catch (err) {
-      throw err;
+    if (waitingPlayers.length < 4) {
+      return { allocated: [], message: 'Not enough players for a game' };
     }
-  },
 
-  async startCourt(sessionId, courtId, players) {
-    return new Promise((resolve, reject) => {
-      const playerIds = players.map(p => p.id).join(',');
-      
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        // Insert into courts_in_use
-        db.run(
-          'INSERT INTO courts_in_use (session_id, court_id, player_ids, match_started_at) VALUES (?, ?, ?, ?)',
-          [sessionId, courtId, playerIds, Date.now()],
-          (err) => {
-            if (err) {
-              db.run('ROLLBACK');
-              return reject(err);
-            }
+    const allCourts = this.getAllCourts();
+    const occupiedIds = this.getOccupiedCourtIds(sessionId);
+    const courts = allCourts.filter(c => !occupiedIds.includes(c.id));
 
-            // Update player status to 'playing'
-            const placeholders = players.map(() => '?').join(',');
-            const playerIdsArray = players.map(p => p.id);
-            
-            db.run(
-              `UPDATE players SET status = ? WHERE id IN (${placeholders})`,
-              ['playing', ...playerIdsArray],
-              (err) => {
-                if (err) {
-                  db.run('ROLLBACK');
-                  return reject(err);
-                }
-                db.run('COMMIT', (err) => {
-                  if (err) return reject(err);
-                  resolve();
-                });
-              }
-            );
-          }
-        );
+    if (courts.length === 0) {
+      return { allocated: [], message: 'All courts are occupied' };
+    }
+
+    const allocated = [];
+
+    // Separate by skill level
+    const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
+    const intermediate = waitingPlayers.filter(p => p.skill_level === 'Intermediate');
+
+    let courtIndex = 0;
+    const gameAssignments = [];
+
+    // Rule 1: Try to group beginners together (4 players = 1 court)
+    while (beginners.length >= 4 && courtIndex < courts.length) {
+      gameAssignments.push({
+        courtId: courts[courtIndex].id,
+        players: beginners.splice(0, 4),
+        type: 'beginner'
       });
-    });
+      courtIndex++;
+    }
+
+    // Rule 2: Try to group intermediate together
+    while (intermediate.length >= 4 && courtIndex < courts.length) {
+      gameAssignments.push({
+        courtId: courts[courtIndex].id,
+        players: intermediate.splice(0, 4),
+        type: 'intermediate'
+      });
+      courtIndex++;
+    }
+
+    // Rule 3: Mix remaining players if possible
+    const remaining = [...beginners, ...intermediate];
+    while (remaining.length >= 4 && courtIndex < courts.length) {
+      gameAssignments.push({
+        courtId: courts[courtIndex].id,
+        players: remaining.splice(0, 4),
+        type: 'mixed'
+      });
+      courtIndex++;
+    }
+
+    // Save to courts_in_use and update player status
+    for (const assignment of gameAssignments) {
+      this.startCourt(sessionId, assignment.courtId, assignment.players);
+      allocated.push(assignment);
+    }
+
+    this.broadcastSessionState(sessionId);
+    return { allocated, message: `Allocated ${allocated.length} court(s)` };
   },
 
-  async endCourt(sessionId, courtId) {
-    return new Promise((resolve, reject) => {
-      // Get the court in use record
-      db.get(
-        'SELECT * FROM courts_in_use WHERE session_id = ? AND court_id = ? ORDER BY id DESC LIMIT 1',
-        [sessionId, courtId],
-        (err, courtInUse) => {
-          if (err) return reject(err);
-          if (!courtInUse) return reject(new Error('No active match on this court'));
+  startCourt(sessionId, courtId, players) {
+    const s = prepareStatements();
 
-          const playerIds = courtInUse.player_ids.split(',').map(Number);
-          const durationMs = Date.now() - courtInUse.match_started_at;
+    const startMatch = db.transaction(() => {
+      // Insert into courts_in_use
+      const result = s.insertCourtInUse.run(sessionId, courtId, Date.now());
+      const courtInUseId = result.lastInsertRowid;
 
-          db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
+      // Insert players into junction table
+      for (const player of players) {
+        s.insertMatchPlayer.run(courtInUseId, player.id);
+      }
 
-            // Add to match history
-            db.run(
-              'INSERT INTO match_history (session_id, court_id, player_ids, duration_ms) VALUES (?, ?, ?, ?)',
-              [sessionId, courtId, courtInUse.player_ids, durationMs],
-              (err) => {
-                if (err) {
-                  db.run('ROLLBACK');
-                  return reject(err);
-                }
-
-                // Update player status back to 'waiting'
-                const placeholders = playerIds.map(() => '?').join(',');
-                db.run(
-                  `UPDATE players SET status = ? WHERE id IN (${placeholders})`,
-                  ['waiting', ...playerIds],
-                  (err) => {
-                    if (err) {
-                      db.run('ROLLBACK');
-                      return reject(err);
-                    }
-
-                    // Remove from courts_in_use
-                    db.run(
-                      'DELETE FROM courts_in_use WHERE id = ?',
-                      [courtInUse.id],
-                      (err) => {
-                        if (err) {
-                          db.run('ROLLBACK');
-                          return reject(err);
-                        }
-                        db.run('COMMIT', (err) => {
-                          if (err) return reject(err);
-                          this.broadcastSessionState(sessionId);
-                          resolve({ durationMs });
-                        });
-                      }
-                    );
-                  }
-                );
-              }
-            );
-          });
-        }
-      );
+      // Update player status to 'playing'
+      const placeholders = players.map(() => '?').join(',');
+      const playerIds = players.map(p => p.id);
+      db.prepare(`UPDATE players SET status = 'playing' WHERE id IN (${placeholders})`).run(...playerIds);
     });
+
+    startMatch();
   },
 
-  async getCourtStatus(sessionId, courtId) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        'SELECT * FROM courts_in_use WHERE session_id = ? AND court_id = ? ORDER BY id DESC LIMIT 1',
-        [sessionId, courtId],
-        (err, row) => (err ? reject(err) : resolve(row || null))
-      );
+  endCourt(sessionId, courtId) {
+    const s = prepareStatements();
+
+    const courtInUse = s.getCourtInUse.get(sessionId, courtId);
+    if (!courtInUse) throw new Error('No active match on this court');
+
+    const playerRows = s.getMatchPlayerIds.all(courtInUse.id);
+    const playerIds = playerRows.map(r => r.player_id);
+    const durationMs = Date.now() - courtInUse.match_started_at;
+
+    const finishMatch = db.transaction(() => {
+      // Add to match history
+      const historyResult = s.insertMatchHistory.run(sessionId, courtId, durationMs);
+      const historyId = historyResult.lastInsertRowid;
+
+      // Copy players to history junction
+      for (const pid of playerIds) {
+        s.insertHistoryMatchPlayer.run(historyId, pid);
+      }
+
+      // Update player status back to 'waiting'
+      if (playerIds.length > 0) {
+        const placeholders = playerIds.map(() => '?').join(',');
+        db.prepare(`UPDATE players SET status = 'waiting' WHERE id IN (${placeholders})`).run(...playerIds);
+      }
+
+      // Remove from courts_in_use (cascade removes match_players rows)
+      s.deleteCourtInUse.run(courtInUse.id);
     });
+
+    finishMatch();
+    this.broadcastSessionState(sessionId);
+    return { durationMs };
   },
 
-  async broadcastSessionState(sessionId) {
+  getCourtStatus(sessionId, courtId) {
+    const s = prepareStatements();
+    const courtInUse = s.getCourtInUse.get(sessionId, courtId);
+    if (!courtInUse) return null;
+
+    // Attach player_ids as CSV for backward compatibility with frontend
+    const playerRows = s.getMatchPlayerIds.all(courtInUse.id);
+    courtInUse.player_ids = playerRows.map(r => r.player_id).join(',');
+    return courtInUse;
+  },
+
+  broadcastSessionState(sessionId) {
     try {
-      const session = await this.getSession(sessionId);
-      const players = await this.getSessionPlayers(sessionId);
-      const courts = await this.getAllCourts();
-      
+      const session = this.getSession(sessionId);
+      const players = this.getSessionPlayers(sessionId);
+      const courts = this.getAllCourts();
+
       const courtsStatus = [];
       for (const court of courts) {
-        const status = await this.getCourtStatus(sessionId, court.id);
+        const status = this.getCourtStatus(sessionId, court.id);
         courtsStatus.push({
           court,
           match: status || null
@@ -361,14 +303,17 @@ const sessionService = {
     }
   },
 
-  async getMatchHistory(sessionId, limit = 50) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        'SELECT * FROM match_history WHERE session_id = ? ORDER BY completed_at DESC LIMIT ?',
-        [sessionId, limit],
-        (err, rows) => (err ? reject(err) : resolve(rows || []))
-      );
-    });
+  getMatchHistory(sessionId, limit = 50) {
+    const s = prepareStatements();
+    const matches = s.getMatchHistory.all(sessionId, limit);
+
+    // Attach player info to each match
+    for (const match of matches) {
+      const playerRows = s.getMatchHistoryPlayers.all(match.id);
+      match.player_ids = playerRows.map(r => r.player_id).join(',');
+      match.players = playerRows;
+    }
+    return matches;
   }
 };
 

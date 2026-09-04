@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md}\""
   },
   "keywords": [
     "badminton",
@@ -17,6 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^13.0.3",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.0.3",
@@ -25,10 +30,13 @@
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
     "socket.io": "^4.5.4",
-    "sqlite3": "^5.1.6",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "@eslint/js": "^8.57.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "nodemon": "^2.0.22",
+    "prettier": "^3.9.6"
   }
 }

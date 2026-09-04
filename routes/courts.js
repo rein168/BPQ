@@ -3,9 +3,9 @@ const router = express.Router();
 const sessionService = require('../services/sessionService');
 
 // Get all active courts
-router.get('/', async (req, res) => {
+router.get('/', (req, res) => {
   try {
-    const courts = await sessionService.getAllCourts();
+    const courts = sessionService.getAllCourts();
     res.json({ courts });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a new court
-router.post('/', async (req, res) => {
+router.post('/', (req, res) => {
   try {
     const { name } = req.body;
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Court name required' });
@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Court name must be 1-50 characters' });
     }
 
-    const courtId = await sessionService.createCourt(trimmedName);
+    const courtId = sessionService.createCourt(trimmedName);
     res.json({ success: true, courtId });
   } catch (err) {
     res.status(500).json({ error: err.message });

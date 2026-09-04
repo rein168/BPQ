@@ -17,7 +17,7 @@ if (isProduction && (!cookieSecret || cookieSecret === 'your_secure_cookie_secre
   process.exit(1);
 }
 
-const db = require('./db');
+require('./db'); // Initialize database on startup
 const sessionService = require('./services/sessionService');
 const sessionRoutes = require('./routes/sessions');
 const courtRoutes = require('./routes/courts');

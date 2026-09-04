@@ -1,3 +1,4 @@
+/* eslint-env serviceworker */
 const CACHE_NAME = 'bbq-v1';
 const STATIC_ASSETS = [
   '/',
