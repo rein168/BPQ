@@ -191,6 +191,53 @@
     .players-summary__stat strong {
       font-variant-numeric: tabular-nums;
     }
+
+    /* Hold-to-confirm button */
+    .hold-btn {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      margin-top: 16px;
+      padding: 16px;
+      font-size: var(--text-lg);
+      font-family: var(--font-heading);
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: opacity 0.15s;
+    }
+    .hold-btn--end {
+      background: var(--coral-500);
+      color: #fff;
+    }
+    .hold-btn--start {
+      background: var(--color-primary);
+      color: #fff;
+    }
+    .hold-btn__fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0%;
+      background: rgba(0,0,0,0.25);
+      transition: none;
+      pointer-events: none;
+    }
+    .hold-btn.holding .hold-btn__fill {
+      width: 100%;
+      transition: width 2s linear;
+    }
+    .hold-btn__label {
+      position: relative;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
@@ -210,9 +257,6 @@
     <div class="bbq-topnav__actions">
       <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="showQrModal()" title="Share QR Code">
         <i class="bi bi-qr-code"></i>
-      </button>
-      <button class="btn-bbq btn-bbq-danger btn-bbq-sm host-only" onclick="endSession()" title="End Game">
-        <i class="bi bi-x-circle"></i> End
       </button>
       <button class="btn-bbq btn-bbq-outline btn-bbq-sm viewer-only" onclick="showPinModal()" id="unlockBtn" style="display:none;">
         <i class="bi bi-unlock"></i>
@@ -262,15 +306,19 @@
     <!-- COURTS TAB -->
     <div id="tab-courts" class="tab-pane active">
       <!-- Court count adjuster (host only) -->
-      <div class="court-count-bar host-only" id="courtCountBar" style="display:flex; align-items:center; gap:8px; padding:8px 0; margin-bottom:8px;">
-        <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600;">Courts:</span>
-        <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="removeCourt()" id="removeCourtBtn" style="width:32px; height:32px; padding:0;">
-          <i class="bi bi-dash"></i>
-        </button>
-        <span id="courtCountDisplay" style="font-family:var(--font-heading); font-weight:700; font-size:var(--text-lg); min-width:24px; text-align:center; font-variant-numeric:tabular-nums;">—</span>
-        <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="addCourt()" id="addCourtBtn" style="width:32px; height:32px; padding:0;">
-          <i class="bi bi-plus"></i>
-        </button>
+      <div class="court-count-bar host-only" id="courtCountBar" style="display:flex; align-items:center; gap:10px; padding:8px 0; margin-bottom:8px;">
+        <label for="courtCountInput" style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600; white-space:nowrap;">Courts</label>
+        <input type="number" id="courtCountInput" value="0" min="1" max="20" inputmode="numeric"
+          style="width:56px; padding:8px 4px; text-align:center; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-heading); font-weight:700; font-size:var(--text-lg); background:var(--bg-card); color:var(--text-primary); font-variant-numeric:tabular-nums;"
+          onchange="setCourtCount(this.value)" />
+        <div style="display:flex; flex-direction:column; gap:2px; align-items:center;">
+          <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="addCourt()" style="width:36px; height:28px; padding:0; font-size:16px; display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-plus"></i>
+          </button>
+          <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="removeCourt()" style="width:36px; height:28px; padding:0; font-size:16px; display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-dash"></i>
+          </button>
+        </div>
       </div>
       <div id="courtsContainer">
         <div class="empty-state">
@@ -558,24 +606,9 @@
     });
 
     // ===== Actions =====
-    async function allocateCourts() {
-      try {
-        const response = await fetch('/api/queue/allocate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId) })
-        });
-        const data = await response.json();
-        if (!data.allocated || data.allocated.length === 0) {
-          alert(data.message);
-        }
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
-    }
 
+    // End match on a court
     async function finishMatch(courtId) {
-      if (!confirm('End this game? Next players will be assigned automatically.')) return;
       try {
         const response = await fetch('/api/queue/' + courtId + '/finish', {
           method: 'POST',
@@ -584,7 +617,6 @@
         });
         const data = await response.json();
         if (data.success && data.historyId) {
-          // Prompt for score entry
           promptScore(data.historyId, courtId);
         }
       } catch (err) {
@@ -592,26 +624,70 @@
       }
     }
 
+    // Start the match timer on a court (players already assigned)
+    async function startGame(courtId) {
+      try {
+        const response = await fetch('/api/queue/begin/' + courtId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (!data.success) alert(data.error || 'Could not start game');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
     function promptScore(historyId, courtId) {
-      // Switch to score tab so host can enter score for the just-finished match
       const scoreBtn = document.querySelector('.bbq-bottomnav__tab:nth-child(4)');
       switchTab('score', scoreBtn);
       loadMatchHistory();
     }
 
-    async function endSession() {
-      if (!confirm('End this game? This action cannot be undone.')) return;
-      try {
-        const response = await fetch('/api/sessions/' + sessionId + '/end', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        if (data.success) window.location.href = '/';
-      } catch (err) {
-        alert('Error: ' + err.message);
+    // ===== Hold-to-confirm button logic =====
+    let holdTimer = null;
+    let holdingBtn = null;
+
+    function startHold(btn) {
+      if (holdTimer) return;
+      holdingBtn = btn;
+      btn.classList.add('holding');
+      holdTimer = setTimeout(() => {
+        btn.classList.remove('holding');
+        holdTimer = null;
+        holdingBtn = null;
+        const courtId = btn.getAttribute('data-court-id');
+        const action = btn.getAttribute('data-action');
+        if (action === 'end') finishMatch(parseInt(courtId));
+        else if (action === 'start') startGame(parseInt(courtId));
+      }, 2000);
+    }
+
+    function cancelHold() {
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+      if (holdingBtn) {
+        holdingBtn.classList.remove('holding');
+        holdingBtn = null;
       }
     }
+
+    // Delegate hold events from the courts container
+    document.addEventListener('mousedown', (e) => {
+      const btn = e.target.closest('.hold-btn');
+      if (btn) { e.preventDefault(); startHold(btn); }
+    });
+    document.addEventListener('mouseup', cancelHold);
+    document.addEventListener('mouseleave', cancelHold);
+    document.addEventListener('touchstart', (e) => {
+      const btn = e.target.closest('.hold-btn');
+      if (btn) { e.preventDefault(); startHold(btn); }
+    }, { passive: false });
+    document.addEventListener('touchend', cancelHold);
+    document.addEventListener('touchcancel', cancelHold);
 
     // ===== Court count adjustment =====
     async function addCourt() {
@@ -644,6 +720,20 @@
         if (!data.success) alert(data.error || 'Failed to remove court');
       } catch (err) {
         alert('Error: ' + err.message);
+      }
+    }
+
+    // Set court count via text input
+    async function setCourtCount(value) {
+      const target = Math.max(1, Math.min(parseInt(value, 10) || 1, 20));
+      if (!sessionState || !sessionState.courts) return;
+      const current = sessionState.courts.length;
+      if (target === current) return;
+
+      if (target > current) {
+        for (let i = 0; i < target - current; i++) await addCourt();
+      } else {
+        for (let i = 0; i < current - target; i++) await removeCourt();
       }
     }
 
@@ -786,9 +876,9 @@
 
       document.getElementById('sessionName').textContent = session.name;
 
-      // Update court count display
-      const courtCountEl = document.getElementById('courtCountDisplay');
-      if (courtCountEl && courts) courtCountEl.textContent = courts.length;
+      // Update court count input
+      const courtCountEl = document.getElementById('courtCountInput');
+      if (courtCountEl && courts) courtCountEl.value = courts.length;
 
       // === Courts tab ===
       const courtsContainer = document.getElementById('courtsContainer');
@@ -802,42 +892,67 @@
             const teamB = (courtData.match.players || []).filter(p => p.team === 'B');
             const playerIdsA = teamA.map(r => r.player_id);
             const playerIdsB = teamB.map(r => r.player_id);
+            const isStarted = !!courtData.match.match_started_at;
 
-            return '<div class="court-card">' +
-              '<div class="court-card__header">' +
-                '<span>' + esc(courtData.court.name) + '</span>' +
-                '<span class="badge-live">🏸 In Play</span>' +
-              '</div>' +
-              '<div class="court-card__body">' +
-                '<div class="match-timer" data-match-started="' + courtData.match.match_started_at + '">' +
-                  formatTimer(now - courtData.match.match_started_at) +
+            // Teams display (shared between pre-game and in-play)
+            const teamsHtml =
+              '<div style="display:flex; gap:8px;">' +
+                '<div style="flex:1;">' +
+                  '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--green-700); margin-bottom:4px;">Team A</div>' +
+                  playerIdsA.map(pid => {
+                    const pl = players.find(p => p.id === pid);
+                    return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                  }).join('') +
                 '</div>' +
-                '<div style="display:flex; gap:8px;">' +
-                  '<div style="flex:1;">' +
-                    '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--green-700); margin-bottom:4px;">Team A</div>' +
-                    playerIdsA.map(pid => {
-                      const pl = players.find(p => p.id === pid);
-                      return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
-                    }).join('') +
-                  '</div>' +
-                  '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted);">vs</div>' +
-                  '<div style="flex:1;">' +
-                    '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--coral-500); margin-bottom:4px;">Team B</div>' +
-                    playerIdsB.map(pid => {
-                      const pl = players.find(p => p.id === pid);
-                      return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
-                    }).join('') +
-                  '</div>' +
+                '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted);">vs</div>' +
+                '<div style="flex:1;">' +
+                  '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--coral-500); margin-bottom:4px;">Team B</div>' +
+                  playerIdsB.map(pid => {
+                    const pl = players.find(p => p.id === pid);
+                    return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                  }).join('') +
                 '</div>' +
-                '<button class="btn-bbq btn-bbq-accent" style="width:100%; margin-top:16px; padding:14px; font-size:var(--text-lg);" onclick="finishMatch(' + courtData.court.id + ')">' +
-                  '<i class="bi bi-flag-fill"></i> End Game' +
-                '</button>' +
-              '</div>' +
-            '</div>';
+              '</div>';
+
+            if (isStarted) {
+              // IN PLAY — timer + hold-to-end
+              return '<div class="court-card">' +
+                '<div class="court-card__header">' +
+                  '<span>' + esc(courtData.court.name) + '</span>' +
+                  '<span class="badge-live">🏸 In Play</span>' +
+                '</div>' +
+                '<div class="court-card__body">' +
+                  '<div class="match-timer" data-match-started="' + courtData.match.match_started_at + '">' +
+                    formatTimer(now - courtData.match.match_started_at) +
+                  '</div>' +
+                  teamsHtml +
+                  '<button class="hold-btn hold-btn--end" data-court-id="' + courtData.court.id + '" data-action="end">' +
+                    '<span class="hold-btn__fill"></span>' +
+                    '<span class="hold-btn__label">Press & Hold to END GAME</span>' +
+                  '</button>' +
+                '</div>' +
+              '</div>';
+            } else {
+              // PRE-GAME — players assigned, waiting for START
+              return '<div class="court-card">' +
+                '<div class="court-card__header">' +
+                  '<span>' + esc(courtData.court.name) + '</span>' +
+                  '<span class="badge-status badge-waiting">Ready</span>' +
+                '</div>' +
+                '<div class="court-card__body">' +
+                  teamsHtml +
+                  '<button class="hold-btn hold-btn--start" data-court-id="' + courtData.court.id + '" data-action="start">' +
+                    '<span class="hold-btn__fill"></span>' +
+                    '<span class="hold-btn__label">START GAME</span>' +
+                  '</button>' +
+                '</div>' +
+              '</div>';
+            }
           } else {
+            // Empty court — no players assigned
             return '<div class="court-card court-card--empty">' +
               '<div class="court-card__header">' + esc(courtData.court.name) + '</div>' +
-              '<div class="court-card__body">Waiting for allocation</div>' +
+              '<div class="court-card__body"><div style="text-align:center; color:var(--text-muted); padding:12px;">Waiting for players</div></div>' +
             '</div>';
           }
         }).join('');

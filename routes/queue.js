@@ -16,6 +16,19 @@ router.post('/allocate', requireHost, (req, res) => {
   }
 });
 
+// Begin match on a court (start the timer — anyone can trigger)
+router.post('/begin/:courtId', (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
+
+    sessionService.beginMatch(sessionId, req.params.courtId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // End a match on a court (anyone can do this — players on the court or host)
 router.post('/:courtId/finish', (req, res) => {
   try {

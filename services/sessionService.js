@@ -151,7 +151,6 @@ const sessionService = {
     });
 
     insertMany(players);
-    // Auto-allocate if courts are available
     this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return players.length;
@@ -170,7 +169,6 @@ const sessionService = {
     const players = s.getSessionPlayers.all(sessionId);
     const nextPos = players.length + 1;
     const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, now);
-    // Auto-allocate if courts are available
     this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
@@ -209,10 +207,6 @@ const sessionService = {
 
     const s = prepareStatements();
     s.updatePlayerStatus.run(newStatus, playerId);
-    // If player became allocatable, try auto-allocate
-    if (ALLOCATABLE_STATUSES.includes(newStatus)) {
-      this.tryAutoAllocate(sessionId);
-    }
     this.broadcastSessionState(sessionId);
   },
 
@@ -406,14 +400,15 @@ const sessionService = {
     return allocated;
   },
 
+  // Assign players to a court (pre-game: match_started_at = null)
   startCourt(sessionId, courtId, teamA, teamB) {
     const s = prepareStatements();
 
-    const startMatch = db.transaction(() => {
-      const result = s.insertCourtInUse.run(sessionId, courtId, Date.now());
+    const assignMatch = db.transaction(() => {
+      // match_started_at = null means "assigned, not started"
+      const result = s.insertCourtInUse.run(sessionId, courtId, null);
       const courtInUseId = result.lastInsertRowid;
 
-      // Insert players with team assignment
       for (const player of teamA) {
         s.insertMatchPlayer.run(courtInUseId, player.id, 'A');
       }
@@ -421,7 +416,7 @@ const sessionService = {
         s.insertMatchPlayer.run(courtInUseId, player.id, 'B');
       }
 
-      // Update all player statuses to 'playing'
+      // Mark players as 'playing' (they're assigned to a court)
       const allPlayers = [...teamA, ...teamB];
       const placeholders = allPlayers.map(() => '?').join(',');
       const playerIds = allPlayers.map(p => p.id);
@@ -430,7 +425,19 @@ const sessionService = {
       );
     });
 
-    startMatch();
+    assignMatch();
+  },
+
+  // Begin the match timer on a court (START GAME pressed)
+  beginMatch(sessionId, courtId) {
+    const s = prepareStatements();
+    const courtInUse = s.getCourtInUse.get(sessionId, courtId);
+    if (!courtInUse) throw new Error('No match assigned to this court');
+    if (courtInUse.match_started_at) throw new Error('Match already started');
+
+    db.prepare('UPDATE courts_in_use SET match_started_at = ? WHERE id = ?')
+      .run(Date.now(), courtInUse.id);
+    this.broadcastSessionState(sessionId);
   },
 
   endCourt(sessionId, courtId) {
@@ -441,10 +448,11 @@ const sessionService = {
 
     const playerRows = s.getMatchPlayerIds.all(courtInUse.id);
     const playerIds = playerRows.map(r => r.player_id);
-    const durationMs = Date.now() - courtInUse.match_started_at;
+    const durationMs = courtInUse.match_started_at
+      ? Date.now() - courtInUse.match_started_at
+      : 0;
 
     const finishMatch = db.transaction(() => {
-      // Add to match history (scores added later via recordScore)
       const historyResult = s.insertMatchHistory.run(sessionId, courtId, durationMs);
       const historyId = historyResult.lastInsertRowid;
 
@@ -469,20 +477,10 @@ const sessionService = {
 
     const historyId = finishMatch();
 
-    // Auto-fill the freed court
+    // Auto-fill the freed court with next players (pre-game state)
     const autoFilled = this.autoFillCourt(sessionId, courtId);
 
     this.broadcastSessionState(sessionId);
-
-    // Emit court-assignment notification
-    if (autoFilled && io) {
-      io.emit(`session:${sessionId}:court-assigned`, {
-        courtName: autoFilled.courtName,
-        courtId: autoFilled.courtId,
-        playerNames: autoFilled.players.map(p => p.name),
-        type: autoFilled.type,
-      });
-    }
 
     return { durationMs, historyId, autoFilled };
   },
