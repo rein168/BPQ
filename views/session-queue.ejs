@@ -3,287 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BPQ - Session Queue</title>
+  <title>BBQ - Session</title>
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#667eea" />
+  <meta name="theme-color" content="#1A8F55" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="BBQ" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
   <style>
-    body {
-      background: #f8f9fa;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .topbar {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 15px 0;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .glass-card {
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-    .player-item {
-      padding: 15px;
-      border-bottom: 1px solid #f0f0f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: background-color 0.2s;
-    }
-    .player-item:hover {
-      background-color: #f9f9f9;
-    }
-    .skill-badge {
-      font-size: 0.75rem;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-weight: 600;
-    }
-    .skill-beginner {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    .skill-intermediate {
-      background-color: #fff3cd;
-      color: #856404;
-    }
-    .btn-action {
-      border-radius: 10px;
-      padding: 10px 20px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-    .btn-action:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    .court-section {
-      margin-bottom: 25px;
-    }
-    .court-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 15px 20px;
-      border-radius: 10px 10px 0 0;
-      font-weight: 600;
-    }
-    .court-empty {
-      padding: 40px 20px;
+    /* Page-specific overrides */
+    .team-divider {
       text-align: center;
-      color: #999;
-    }
-    .match-display {
-      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-    .match-player {
-      padding: 10px 15px;
-      background: white;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    .timer {
-      font-size: 1.5rem;
+      font-family: var(--font-heading);
       font-weight: 700;
-      text-align: center;
-      color: #667eea;
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+    .score-match-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 12px;
+      background: var(--bg-card);
+    }
+    .score-match-card.needs-score {
+      border-left: 4px solid var(--color-accent);
+    }
+    .score-team-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+    }
+    .score-team-label {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: var(--text-sm);
+      width: 50px;
+      flex-shrink: 0;
+    }
+    .score-team-names {
+      flex: 1;
+      font-size: var(--text-sm);
+    }
+    .score-result {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: var(--text-xl);
       font-variant-numeric: tabular-nums;
-      margin: 8px 0;
+      text-align: center;
     }
-    .court-notification {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      z-index: 200;
-      max-width: 350px;
-      animation: slideIn 0.4s ease-out;
-    }
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    .stats-table th { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; }
-    .stats-table td { vertical-align: middle; }
-    .stat-number { font-size: 1.8rem; font-weight: 700; color: #667eea; font-variant-numeric: tabular-nums; }
-    .stat-label { font-size: 0.8rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .status-waiting {
-      background-color: #e3f2fd;
-      color: #1976d2;
-    }
-    .status-playing {
-      background-color: #f3e5f5;
-      color: #7b1fa2;
-    }
-    /* Role-based visibility */
-    body.role-viewer .host-only { display: none !important; }
-    body.role-viewer .viewer-only { display: inline-block !important; }
-    body.role-host .viewer-only { display: none !important; }
-    .viewer-badge {
-      font-size: 0.7rem;
-      padding: 2px 8px;
-      border-radius: 10px;
-      background: #e3f2fd;
-      color: #1976d2;
-      font-weight: 600;
-      margin-left: 8px;
-    }
+    .score-result .win { color: var(--green-700); }
+    .score-result .lose { color: var(--coral-500); }
+    .import-section { margin-bottom: 16px; }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="container-fluid">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div class="d-flex align-items-center gap-3">
-          <a href="/" class="btn btn-light border rounded-3">
-            <i class="bi bi-arrow-left"></i>
-          </a>
-          <div>
-            <h4 class="mb-0" id="sessionName">Loading...</h4>
-            <small class="text-muted">Session Queue Management</small>
-          </div>
-        </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary btn-action host-only" onclick="allocateCourts()" id="allocateBtn">
-            <i class="bi bi-lightning-fill"></i> Auto-Allocate
-          </button>
-          <button class="btn btn-outline-danger btn-action host-only" onclick="endSession()">
-            <i class="bi bi-stop-circle"></i> End Session
-          </button>
-          <button class="btn btn-outline-secondary btn-action viewer-only" onclick="showPinModal()" id="unlockBtn" style="display:none;">
-            <i class="bi bi-unlock"></i> Host Login
-          </button>
-        </div>
-      </div>
+  <!-- Top Nav -->
+  <nav class="bbq-topnav">
+    <a href="/" class="bbq-topnav__logo">
+      <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="34" height="34" rx="7" fill="var(--color-primary)"/>
+        <line x1="9" y1="26" x2="26" y2="7" stroke="#D4A843" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="15.5" cy="19" rx="4" ry="5" fill="#fff" opacity="0.95" transform="rotate(-40, 15.5, 19)"/>
+        <path d="M13,17.5 Q12.5,13 16,9 Q17,12.5 16.5,17 Z" fill="#fff" opacity="0.9"/>
+        <path d="M15,16 Q16,12 19,9 Q19,13 17.5,16.5 Z" fill="#fff" opacity="0.8"/>
+      </svg>
+      <span>BBQ</span>
+    </a>
+    <div class="bbq-topnav__title" id="sessionName">Loading...</div>
+    <div class="bbq-topnav__actions">
+      <button class="btn-bbq btn-bbq-primary btn-bbq-sm host-only" onclick="allocateCourts()" id="allocateBtn">
+        <i class="bi bi-lightning-fill"></i> Allocate
+      </button>
+      <button class="btn-bbq btn-bbq-danger btn-bbq-sm host-only" onclick="endSession()">
+        <i class="bi bi-stop-circle"></i>
+      </button>
+      <button class="btn-bbq btn-bbq-outline btn-bbq-sm viewer-only" onclick="showPinModal()" id="unlockBtn" style="display:none;">
+        <i class="bi bi-unlock"></i>
+      </button>
     </div>
-  </div>
+  </nav>
 
   <!-- PIN Auth Modal -->
-  <div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title"><i class="bi bi-lock-fill"></i> Host PIN Required</h5>
-        </div>
-        <div class="modal-body">
-          <p class="text-muted small mb-3">Enter the host PIN to manage this session, or view as a player.</p>
-          <input type="text" id="pinInput" class="form-control form-control-lg text-center"
-            placeholder="Enter PIN" pattern="\d{4,6}" maxlength="6" inputmode="numeric" autocomplete="off" />
-          <div id="pinError" class="text-danger small mt-2" style="display:none;"></div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-outline-secondary" onclick="skipPin()">View as Player</button>
-          <button type="button" class="btn btn-primary" onclick="submitPin()">Authenticate</button>
+  <div id="pinOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:300; display:none; align-items:center; justify-content:center;">
+    <div class="bbq-card" style="max-width:320px; width:90%; margin:auto;">
+      <div class="bbq-card__header"><i class="bi bi-lock-fill"></i> Host PIN Required</div>
+      <div class="bbq-card__body">
+        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin-bottom:12px;">Enter the host PIN to manage this session, or view as a player.</p>
+        <input type="text" id="pinInput" class="score-input" style="width:100%; font-size:var(--text-xl);"
+          placeholder="Enter PIN" pattern="\d{4,6}" maxlength="6" inputmode="numeric" autocomplete="off" />
+        <div id="pinError" style="display:none; color:var(--color-danger); font-size:var(--text-sm); margin-top:8px;"></div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button class="btn-bbq btn-bbq-ghost" style="flex:1;" onclick="skipPin()">View as Player</button>
+          <button class="btn-bbq btn-bbq-primary" style="flex:1;" onclick="submitPin()">Authenticate</button>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="container-fluid py-4">
-    <!-- Import Roster Section (host only) -->
-    <div class="glass-card p-4 mb-4 host-only">
-      <h5 class="mb-3"><i class="bi bi-file-text"></i> Import Player Roster</h5>
-      <p class="text-muted small">Paste player names (one per line), then assign skill levels.</p>
-      <form id="importForm" class="d-flex gap-2 flex-wrap">
-        <textarea
-          id="playerList"
-          class="form-control"
-          rows="6"
-          placeholder="Paste player names here, one per line"
-          style="flex: 1; min-width: 250px;"
-        ></textarea>
-        <div class="d-flex flex-column gap-2" style="min-width: 150px;">
-          <select id="skillLevel" class="form-select" required>
-            <option value="">Select Skill Level</option>
-            <option value="Beginner">Beginner</option>
-            <option value="Intermediate">Intermediate</option>
-          </select>
-          <button type="submit" class="btn btn-success btn-action flex-grow-1">
-            <i class="bi bi-upload"></i> Import
-          </button>
-        </div>
-      </form>
-    </div>
+  <!-- Main content area — tab panes -->
+  <main style="padding: 16px; max-width: 960px; margin: 0 auto;">
 
-    <div class="row">
-      <!-- Courts Section -->
-      <div class="col-lg-8 mb-4">
-        <div class="glass-card">
-          <div class="court-header">
-            <i class="bi bi-grid-3x3-gap"></i> Courts
-          </div>
-          <div id="courtsContainer" class="p-3">
-            <div class="court-empty">
-              <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-              <p class="mt-2">No courts allocated yet</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Queue Section -->
-      <div class="col-lg-4 mb-4">
-        <div class="glass-card">
-          <div class="court-header">
-            <i class="bi bi-hourglass-split"></i> Waiting Queue
-          </div>
-          <div id="queueContainer" class="p-3">
-            <div class="court-empty">
-              <p class="mt-2">Queue is empty</p>
-            </div>
-          </div>
+    <!-- COURTS TAB -->
+    <div id="tab-courts" class="tab-pane active">
+      <div id="courtsContainer">
+        <div class="empty-state">
+          <i class="bi bi-grid-3x3-gap"></i>
+          <p>No courts allocated yet</p>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Court assignment notification container -->
+    <!-- QUEUE TAB -->
+    <div id="tab-queue" class="tab-pane">
+      <!-- Import (host only) -->
+      <div class="bbq-card import-section host-only">
+        <div class="bbq-card__header"><i class="bi bi-file-text"></i> Import Players</div>
+        <div class="bbq-card__body">
+          <form id="importForm">
+            <textarea id="playerList" rows="4" placeholder="Paste player names, one per line"
+              style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); resize:vertical; background:var(--bg-page); color:var(--text-primary);"></textarea>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <select id="skillLevel" required
+                style="flex:1; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); background:var(--bg-card); color:var(--text-primary);">
+                <option value="">Skill Level</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+              </select>
+              <button type="submit" class="btn-bbq btn-bbq-primary">
+                <i class="bi bi-upload"></i> Import
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Queue list -->
+      <div class="bbq-card">
+        <div class="bbq-card__header"><i class="bi bi-hourglass-split"></i> Waiting Queue</div>
+        <div id="queueContainer">
+          <div class="empty-state"><p>Queue is empty</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCORE TAB (host only) -->
+    <div id="tab-score" class="tab-pane">
+      <div class="bbq-card">
+        <div class="bbq-card__header"><i class="bi bi-trophy"></i> Match Scores</div>
+        <div class="bbq-card__body" id="scoreContainer">
+          <div class="empty-state"><p>No completed matches yet</p></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Notification container -->
   <div id="notificationContainer"></div>
 
-  <!-- Stats Panel (host only) -->
-  <div class="container-fluid pb-4">
-    <div class="glass-card p-4 host-only">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-bar-chart-line"></i> Session Stats</h5>
-        <button class="btn btn-outline-primary btn-sm" onclick="loadStats()">
-          <i class="bi bi-arrow-clockwise"></i> Refresh
-        </button>
-      </div>
-      <div id="statsContainer">
-        <p class="text-muted">Click refresh to load stats, or they load when a match finishes.</p>
-      </div>
-    </div>
-  </div>
+  <!-- Bottom Nav -->
+  <nav class="bbq-bottomnav">
+    <button class="bbq-bottomnav__tab active" onclick="switchTab('courts', this)">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
+      Courts
+    </button>
+    <button class="bbq-bottomnav__tab" onclick="switchTab('queue', this)">
+      <i class="bi bi-people-fill"></i>
+      Queue
+    </button>
+    <button class="bbq-bottomnav__tab host-only-tab" onclick="switchTab('score', this)">
+      <i class="bi bi-trophy-fill"></i>
+      Score
+    </button>
+  </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
     const sessionId = window.location.pathname.split('/').pop();
     const socket = io();
     let sessionState = null;
-    let userRole = 'viewer'; // default until checked
+    let userRole = 'viewer';
     let timerInterval = null;
+    let matchHistory = []; // cached for score tab
 
     // XSS-safe text helper
     function esc(str) {
+      if (str == null) return '';
       const d = document.createElement('div');
       d.textContent = str;
       return d.innerHTML;
@@ -297,33 +207,42 @@
       return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     }
 
-    // Start ticking all court timers every second
+    // Format arrival time
+    function formatTime(ts) {
+      if (!ts) return '—';
+      return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    // Timer tick
     function startTimerTick() {
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        const timerEls = document.querySelectorAll('[data-match-started]');
-        const now = Date.now();
-        timerEls.forEach(el => {
+        document.querySelectorAll('[data-match-started]').forEach(el => {
           const started = parseInt(el.getAttribute('data-match-started'), 10);
-          if (started) {
-            el.textContent = formatTimer(now - started);
-          }
+          if (started) el.textContent = formatTimer(Date.now() - started);
         });
       }, 1000);
     }
     startTimerTick();
 
-    // Check user role on load
+    // ===== Tab switching =====
+    function switchTab(tabName, btnEl) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.bbq-bottomnav__tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      if (btnEl) btnEl.classList.add('active');
+      // Load score data when switching to score tab
+      if (tabName === 'score') loadMatchHistory();
+    }
+
+    // ===== Role management =====
     async function checkRole() {
       try {
-        const response = await fetch(`/api/sessions/${sessionId}/role`);
+        const response = await fetch('/api/sessions/' + sessionId + '/role');
         const data = await response.json();
         setRole(data.role);
-
-        // If session has PIN and user is not host, show modal
         if (data.hasPin && data.role !== 'host') {
-          const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-          pinModal.show();
+          document.getElementById('pinOverlay').style.display = 'flex';
         }
       } catch (err) {
         console.error('Error checking role:', err);
@@ -338,19 +257,16 @@
     }
 
     function showPinModal() {
-      const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
-      pinModal.show();
+      document.getElementById('pinOverlay').style.display = 'flex';
     }
 
     async function submitPin() {
       const pin = document.getElementById('pinInput').value.trim();
       const errorEl = document.getElementById('pinError');
       errorEl.style.display = 'none';
-
       if (!pin) { errorEl.textContent = 'Please enter a PIN'; errorEl.style.display = 'block'; return; }
-
       try {
-        const response = await fetch(`/api/sessions/${sessionId}/auth`, {
+        const response = await fetch('/api/sessions/' + sessionId + '/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pin })
@@ -358,13 +274,13 @@
         const data = await response.json();
         if (data.success) {
           setRole('host');
-          bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+          document.getElementById('pinOverlay').style.display = 'none';
           document.getElementById('pinInput').value = '';
         } else {
           errorEl.textContent = data.error || 'Incorrect PIN';
           errorEl.style.display = 'block';
         }
-      } catch (err) {
+      } catch {
         errorEl.textContent = 'Error authenticating';
         errorEl.style.display = 'block';
       }
@@ -372,41 +288,35 @@
 
     function skipPin() {
       setRole('viewer');
-      bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+      document.getElementById('pinOverlay').style.display = 'none';
     }
 
-    // Enter key submits PIN
     document.getElementById('pinInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submitPin();
     });
 
     checkRole();
 
-    // Join session
+    // ===== Socket =====
     socket.emit('join-session', parseInt(sessionId));
 
-    // Listen for session state updates
-    socket.on(`session:${sessionId}`, (data) => {
+    socket.on('session:' + sessionId, (data) => {
       sessionState = data;
       updateUI();
     });
 
-    // Import player roster
+    socket.on('session:' + sessionId + ':court-assigned', (data) => {
+      showCourtNotification(data);
+    });
+
+    // ===== Import =====
     document.getElementById('importForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const playerNames = document.getElementById('playerList').value.trim().split('\n').filter(n => n.trim());
       const skillLevel = document.getElementById('skillLevel').value;
+      if (!playerNames.length || !skillLevel) { alert('Please enter player names and select skill level'); return; }
 
-      if (!playerNames.length || !skillLevel) {
-        alert('Please enter player names and select skill level');
-        return;
-      }
-
-      const players = playerNames.map(name => ({
-        name: name.trim(),
-        skill_level: skillLevel
-      }));
-
+      const players = playerNames.map(name => ({ name: name.trim(), skill_level: skillLevel }));
       try {
         const response = await fetch('/api/players/import', {
           method: 'POST',
@@ -415,7 +325,6 @@
         });
         const data = await response.json();
         if (data.success) {
-          alert(`Imported ${data.imported} players!`);
           document.getElementById('playerList').value = '';
           socket.emit('get-session-state', parseInt(sessionId));
         }
@@ -424,6 +333,7 @@
       }
     });
 
+    // ===== Actions =====
     async function allocateCourts() {
       try {
         const response = await fetch('/api/queue/allocate', {
@@ -432,241 +342,315 @@
           body: JSON.stringify({ sessionId: parseInt(sessionId) })
         });
         const data = await response.json();
-        if (data.allocated.length > 0) {
-          alert(`Allocated ${data.allocated.length} court(s)!`);
-        } else {
+        if (!data.allocated || data.allocated.length === 0) {
           alert(data.message);
         }
       } catch (err) {
-        alert('Error allocating courts: ' + err.message);
+        alert('Error: ' + err.message);
       }
     }
 
     async function finishMatch(courtId) {
       if (!confirm('Mark this game as finished?')) return;
-
       try {
-        const response = await fetch(`/api/queue/${courtId}/finish`, {
+        const response = await fetch('/api/queue/' + courtId + '/finish', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: parseInt(sessionId) })
         });
         const data = await response.json();
-        if (data.success) {
-          // Refresh stats after match ends
-          if (userRole === 'host') loadStats();
+        if (data.success && data.historyId) {
+          // Prompt for score entry
+          promptScore(data.historyId, courtId);
         }
       } catch (err) {
-        alert('Error finishing match: ' + err.message);
+        alert('Error: ' + err.message);
       }
     }
 
-    async function removePlayer(playerId) {
-      if (!confirm('Remove this player from the queue?')) return;
-      try {
-        const response = await fetch(`/api/players/${playerId}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId) })
-        });
-        const data = await response.json();
-        if (!data.success) {
-          alert(data.error || 'Error removing player');
-        }
-      } catch (err) {
-        alert('Error removing player: ' + err.message);
-      }
+    function promptScore(historyId, courtId) {
+      // Switch to score tab so host can enter score for the just-finished match
+      const scoreBtn = document.querySelector('.bbq-bottomnav__tab:nth-child(3)');
+      switchTab('score', scoreBtn);
+      loadMatchHistory();
     }
 
     async function endSession() {
       if (!confirm('End this session? This action cannot be undone.')) return;
-
       try {
-        const response = await fetch(`/api/sessions/${sessionId}/end`, {
+        const response = await fetch('/api/sessions/' + sessionId + '/end', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
         const data = await response.json();
+        if (data.success) window.location.href = '/';
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function setPlayerStatus(playerId, status) {
+      try {
+        await fetch('/api/players/' + playerId + '/status', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), status })
+        });
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function removePlayer(playerId) {
+      if (!confirm('Remove this player?')) return;
+      try {
+        await fetch('/api/players/' + playerId, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // ===== Score entry =====
+    async function loadMatchHistory() {
+      try {
+        const response = await fetch('/api/sessions/' + sessionId + '/history');
+        const data = await response.json();
+        matchHistory = data.history || [];
+        renderScoreTab();
+      } catch (err) {
+        console.error('Error loading history:', err);
+      }
+    }
+
+    function renderScoreTab() {
+      const container = document.getElementById('scoreContainer');
+      if (matchHistory.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No completed matches yet</p></div>';
+        return;
+      }
+
+      container.innerHTML = matchHistory.map(match => {
+        const teamA = match.players.filter(p => p.team === 'A');
+        const teamB = match.players.filter(p => p.team === 'B');
+        const hasScore = match.score_a != null && match.score_b != null;
+        const duration = (match.duration_ms / 60000).toFixed(1);
+
+        if (hasScore) {
+          const aWin = match.score_a > match.score_b;
+          return '<div class="score-match-card">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+              '<span style="font-size:var(--text-xs); color:var(--text-muted);">' + duration + ' min</span>' +
+              '<span style="font-size:var(--text-xs); color:var(--text-muted);">' + new Date(match.completed_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) + '</span>' +
+            '</div>' +
+            '<div class="score-team-row">' +
+              '<span class="score-team-label" style="color:var(--green-700);">A</span>' +
+              '<span class="score-team-names">' + teamA.map(p => esc(p.name)).join(' & ') + '</span>' +
+              '<span class="score-result ' + (aWin ? 'win' : 'lose') + '">' + match.score_a + '</span>' +
+            '</div>' +
+            '<div class="score-team-row">' +
+              '<span class="score-team-label" style="color:var(--coral-500);">B</span>' +
+              '<span class="score-team-names">' + teamB.map(p => esc(p.name)).join(' & ') + '</span>' +
+              '<span class="score-result ' + (!aWin ? 'win' : 'lose') + '">' + match.score_b + '</span>' +
+            '</div>' +
+          '</div>';
+        } else {
+          // Needs score entry
+          return '<div class="score-match-card needs-score">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+              '<span style="font-size:var(--text-xs); color:var(--color-accent); font-weight:600;">Score needed</span>' +
+              '<span style="font-size:var(--text-xs); color:var(--text-muted);">' + duration + ' min</span>' +
+            '</div>' +
+            '<div class="score-team-row">' +
+              '<span class="score-team-label" style="color:var(--green-700);">A</span>' +
+              '<span class="score-team-names">' + teamA.map(p => esc(p.name)).join(' & ') + '</span>' +
+              '<input type="number" class="score-input" id="scoreA-' + match.id + '" min="0" max="99" placeholder="0" />' +
+            '</div>' +
+            '<div class="score-team-row">' +
+              '<span class="score-team-label" style="color:var(--coral-500);">B</span>' +
+              '<span class="score-team-names">' + teamB.map(p => esc(p.name)).join(' & ') + '</span>' +
+              '<input type="number" class="score-input" id="scoreB-' + match.id + '" min="0" max="99" placeholder="0" />' +
+            '</div>' +
+            '<button class="btn-bbq btn-bbq-accent btn-bbq-sm" style="width:100%; margin-top:8px;" onclick="submitScore(' + match.id + ')">' +
+              '<i class="bi bi-check-lg"></i> Save Score' +
+            '</button>' +
+          '</div>';
+        }
+      }).join('');
+    }
+
+    async function submitScore(matchId) {
+      const scoreAEl = document.getElementById('scoreA-' + matchId);
+      const scoreBEl = document.getElementById('scoreB-' + matchId);
+      if (!scoreAEl || !scoreBEl) return;
+      const scoreA = parseInt(scoreAEl.value, 10);
+      const scoreB = parseInt(scoreBEl.value, 10);
+      if (isNaN(scoreA) || isNaN(scoreB)) { alert('Please enter both scores'); return; }
+      try {
+        const response = await fetch('/api/queue/score/' + matchId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), scoreA, scoreB })
+        });
+        const data = await response.json();
         if (data.success) {
-          window.location.href = '/';
+          loadMatchHistory();
+          // Refresh player stats (W/L updates)
+          socket.emit('get-session-state', parseInt(sessionId));
         }
       } catch (err) {
-        alert('Error ending session: ' + err.message);
+        alert('Error: ' + err.message);
       }
     }
 
-    function updateUI() {
-      if (!sessionState) return;
-
-      const { session, players, courts } = sessionState;
-
-      // Update session name (textContent is already XSS-safe)
-      document.getElementById('sessionName').textContent = session.name;
-
-      // Update courts display
-      const courtsContainer = document.getElementById('courtsContainer');
-      if (!courts || courts.length === 0) {
-        courtsContainer.innerHTML = '<div class="court-empty"><p class="mt-2">No courts allocated yet</p></div>';
-      } else {
-        const now = Date.now();
-        courtsContainer.innerHTML = courts
-          .map(
-            (courtData) => `
-          <div class="court-section">
-            <div class="court-header d-flex justify-content-between align-items-center">
-              <span>${esc(courtData.court.name)}</span>
-              ${courtData.match ? `<span class="badge bg-light text-dark">🏸 In Play</span>` : ''}
-            </div>
-            ${courtData.match
-              ? `
-              <div class="match-display">
-                <div class="timer" data-match-started="${courtData.match.match_started_at}">
-                  ${formatTimer(now - courtData.match.match_started_at)}
-                </div>
-                <div class="mb-3">
-                  ${courtData.match.player_ids
-                    .split(',')
-                    .map((pid) => {
-                      const player = players.find((p) => p.id == pid);
-                      return player
-                        ? `<div class="match-player">${esc(player.name)} <span class="skill-badge skill-${esc(player.skill_level.toLowerCase())}">${esc(player.skill_level)}</span></div>`
-                        : '';
-                    })
-                    .join('')}
-                </div>
-                <button class="btn btn-success w-100 btn-action host-only" onclick="finishMatch(${courtData.court.id})">
-                  <i class="bi bi-check-circle"></i> Game Finished
-                </button>
-              </div>
-            `
-              : '<div class="court-empty" style="padding: 30px 20px; font-size: 0.9rem;">Waiting for allocation</div>'
-            }
-          </div>
-        `
-          )
-          .join('');
-      }
-
-      // Update queue display
-      const waitingPlayers = players.filter((p) => p.status === 'waiting');
-      const queueContainer = document.getElementById('queueContainer');
-      if (waitingPlayers.length === 0) {
-        queueContainer.innerHTML = '<div class="court-empty"><p class="mt-2">Queue is empty</p></div>';
-      } else {
-        queueContainer.innerHTML = waitingPlayers
-          .map(
-            (player) => `
-          <div class="player-item">
-            <div>
-              <strong>${esc(player.name)}</strong>
-              <span class="skill-badge skill-${esc(player.skill_level.toLowerCase())} ms-2">${esc(player.skill_level)}</span>
-            </div>
-            <button class="btn btn-outline-danger btn-sm host-only" onclick="removePlayer(${player.id})" title="Remove player">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        `
-          )
-          .join('');
-      }
-    }
-
-    // Listen for court-assignment notifications (auto-fill on court-free)
-    socket.on(`session:${sessionId}:court-assigned`, (data) => {
-      showCourtNotification(data);
-    });
-
+    // ===== Notification toast =====
     function showCourtNotification(data) {
       const container = document.getElementById('notificationContainer');
       const id = 'notif-' + Date.now();
       const names = data.playerNames.map(n => esc(n)).join(', ');
-      container.insertAdjacentHTML('beforeend', `
-        <div id="${id}" class="court-notification alert alert-info alert-dismissible shadow-lg" role="alert">
-          <strong><i class="bi bi-arrow-right-circle-fill"></i> Next Up!</strong><br>
-          <span class="fw-bold">${esc(data.courtName)}</span>: ${names}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      `);
-      // Auto-dismiss after 8 seconds
-      setTimeout(() => {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-      }, 8000);
+      container.insertAdjacentHTML('beforeend',
+        '<div id="' + id + '" class="bbq-toast">' +
+          '<button class="bbq-toast__close" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>' +
+          '<div class="bbq-toast__title"><i class="bi bi-arrow-right-circle-fill"></i> Next Up!</div>' +
+          '<div class="bbq-toast__body"><strong>' + esc(data.courtName) + '</strong>: ' + names + '</div>' +
+        '</div>'
+      );
+      setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 8000);
     }
 
-    // Stats panel (host only)
-    async function loadStats() {
-      try {
-        const response = await fetch(`/api/sessions/${sessionId}/stats`);
-        if (response.status === 403) {
-          document.getElementById('statsContainer').innerHTML =
-            '<p class="text-muted">Host access required to view stats.</p>';
-          return;
+    // ===== UI Update =====
+    function updateUI() {
+      if (!sessionState) return;
+      const { session, players, courts } = sessionState;
+
+      document.getElementById('sessionName').textContent = session.name;
+
+      // === Courts tab ===
+      const courtsContainer = document.getElementById('courtsContainer');
+      if (!courts || courts.length === 0) {
+        courtsContainer.innerHTML = '<div class="empty-state"><i class="bi bi-grid-3x3-gap"></i><p>No courts available</p></div>';
+      } else {
+        const now = Date.now();
+        courtsContainer.innerHTML = courts.map(courtData => {
+          if (courtData.match) {
+            const teamA = (courtData.match.players || []).filter(p => p.team === 'A');
+            const teamB = (courtData.match.players || []).filter(p => p.team === 'B');
+            const playerIdsA = teamA.map(r => r.player_id);
+            const playerIdsB = teamB.map(r => r.player_id);
+
+            return '<div class="court-card">' +
+              '<div class="court-card__header">' +
+                '<span>' + esc(courtData.court.name) + '</span>' +
+                '<span class="badge-live">🏸 In Play</span>' +
+              '</div>' +
+              '<div class="court-card__body">' +
+                '<div class="match-timer" data-match-started="' + courtData.match.match_started_at + '">' +
+                  formatTimer(now - courtData.match.match_started_at) +
+                '</div>' +
+                '<div style="display:flex; gap:8px;">' +
+                  '<div style="flex:1;">' +
+                    '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--green-700); margin-bottom:4px;">Team A</div>' +
+                    playerIdsA.map(pid => {
+                      const pl = players.find(p => p.id === pid);
+                      return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                    }).join('') +
+                  '</div>' +
+                  '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted);">vs</div>' +
+                  '<div style="flex:1;">' +
+                    '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--coral-500); margin-bottom:4px;">Team B</div>' +
+                    playerIdsB.map(pid => {
+                      const pl = players.find(p => p.id === pid);
+                      return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                    }).join('') +
+                  '</div>' +
+                '</div>' +
+                '<button class="btn-bbq btn-bbq-accent host-only" style="width:100%; margin-top:12px;" onclick="finishMatch(' + courtData.court.id + ')">' +
+                  '<i class="bi bi-check-circle"></i> Game Finished' +
+                '</button>' +
+              '</div>' +
+            '</div>';
+          } else {
+            return '<div class="court-card court-card--empty">' +
+              '<div class="court-card__header">' + esc(courtData.court.name) + '</div>' +
+              '<div class="court-card__body">Waiting for allocation</div>' +
+            '</div>';
+          }
+        }).join('');
+      }
+
+      // === Queue tab ===
+      // Show all non-absent players in queue view, sorted: waiting/rested first, then break/skipped
+      const allPlayers = players.filter(p => p.status !== 'absent' || userRole === 'host');
+      const queueContainer = document.getElementById('queueContainer');
+
+      if (allPlayers.length === 0) {
+        queueContainer.innerHTML = '<div class="empty-state"><p>No players yet. Import a roster to get started.</p></div>';
+      } else {
+        // Table header
+        let html = '<div style="overflow-x:auto;">' +
+          '<table style="width:100%; border-collapse:collapse; font-size:var(--text-sm);">' +
+          '<thead><tr style="border-bottom:2px solid var(--border);">' +
+            '<th style="text-align:left; padding:8px 12px; font-family:var(--font-heading); font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Player</th>' +
+            '<th style="text-align:center; padding:8px 6px; font-family:var(--font-heading); font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">W-L</th>' +
+            '<th style="text-align:center; padding:8px 6px; font-family:var(--font-heading); font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Games</th>' +
+            '<th style="text-align:center; padding:8px 6px; font-family:var(--font-heading); font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Arrived</th>' +
+            '<th style="text-align:center; padding:8px 6px; font-family:var(--font-heading); font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted);">Status</th>' +
+            '<th style="padding:8px 6px;" class="host-only"></th>' +
+          '</tr></thead><tbody>';
+
+        for (const p of allPlayers) {
+          const wl = (p.wins || 0) + '-' + (p.losses || 0);
+          const statusBadge = '<span class="badge-status badge-' + esc(p.status) + '">' + esc(p.status.replace('_', ' ')) + '</span>';
+
+          // Action buttons based on status
+          let actions = '';
+          if (p.status === 'waiting' || p.status === 'rested') {
+            actions = '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break"><i class="bi bi-cup-hot"></i></button>';
+            if (userRole === 'host') {
+              actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'skipped\')" title="Skip"><i class="bi bi-skip-forward"></i></button>';
+            }
+          } else if (p.status === 'break') {
+            actions = '<button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue"><i class="bi bi-arrow-return-left"></i></button>';
+          } else if (p.status === 'skipped') {
+            actions = '<button class="btn-bbq btn-bbq-outline btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Unskip"><i class="bi bi-arrow-return-left"></i></button>';
+          }
+
+          if (userRole === 'host' && p.status !== 'playing') {
+            actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" style="color:var(--color-danger);"><i class="bi bi-box-arrow-right"></i></button>';
+            actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="removePlayer(' + p.id + ')" title="Remove" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i></button>';
+          }
+
+          html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
+            '<td style="padding:8px 12px;">' +
+              '<div style="font-weight:500;">' + esc(p.name) + '</div>' +
+              '<span class="badge-skill badge-' + esc(p.skill_level.toLowerCase()) + '">' + esc(p.skill_level) + '</span>' +
+            '</td>' +
+            '<td style="text-align:center; padding:8px 6px; font-variant-numeric:tabular-nums; font-weight:600;">' +
+              '<span class="record-w">' + (p.wins || 0) + '</span>-<span class="record-l">' + (p.losses || 0) + '</span>' +
+            '</td>' +
+            '<td style="text-align:center; padding:8px 6px; font-variant-numeric:tabular-nums; font-weight:600;">' + (p.games_played || 0) + '</td>' +
+            '<td style="text-align:center; padding:8px 6px; font-size:var(--text-xs); color:var(--text-muted);">' + formatTime(p.arrived_at || p.created_at) + '</td>' +
+            '<td style="text-align:center; padding:8px 6px;">' + statusBadge + '</td>' +
+            '<td style="padding:8px 6px; white-space:nowrap;" class="host-only">' + actions + '</td>' +
+          '</tr>';
         }
-        const data = await response.json();
-        renderStats(data);
-      } catch (err) {
-        console.error('Error loading stats:', err);
+
+        html += '</tbody></table></div>';
+        queueContainer.innerHTML = html;
       }
     }
 
-    function renderStats(data) {
-      const { summary, playerStats } = data;
-      const avgMin = (summary.avgDurationMs / 60000).toFixed(1);
-      const minMin = (summary.minDurationMs / 60000).toFixed(1);
-      const maxMin = (summary.maxDurationMs / 60000).toFixed(1);
-
-      let html = `
-        <div class="row text-center mb-3">
-          <div class="col-3">
-            <div class="stat-number">${summary.totalMatches}</div>
-            <div class="stat-label">Matches</div>
-          </div>
-          <div class="col-3">
-            <div class="stat-number">${avgMin}</div>
-            <div class="stat-label">Avg (min)</div>
-          </div>
-          <div class="col-3">
-            <div class="stat-number">${minMin}</div>
-            <div class="stat-label">Shortest</div>
-          </div>
-          <div class="col-3">
-            <div class="stat-number">${maxMin}</div>
-            <div class="stat-label">Longest</div>
-          </div>
-        </div>
-      `;
-
-      if (playerStats.length > 0) {
-        html += `
-          <table class="table table-sm stats-table mb-0">
-            <thead><tr><th>Player</th><th>Skill</th><th class="text-end">Matches Played</th></tr></thead>
-            <tbody>
-              ${playerStats
-                .map(
-                  (p) => `<tr>
-                    <td>${esc(p.name)}</td>
-                    <td><span class="skill-badge skill-${esc(p.skill_level.toLowerCase())}">${esc(p.skill_level)}</span></td>
-                    <td class="text-end fw-bold">${p.matchCount}</td>
-                  </tr>`
-                )
-                .join('')}
-            </tbody>
-          </table>
-        `;
-      }
-
-      document.getElementById('statsContainer').innerHTML = html;
-    }
-
-    // Initial state request
+    // ===== Init =====
     socket.emit('get-session-state', parseInt(sessionId));
 
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('SW registered:', reg.scope))
-        .catch((err) => console.warn('SW registration failed:', err));
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.warn('SW registration failed:', err));
     }
   </script>
 </body>

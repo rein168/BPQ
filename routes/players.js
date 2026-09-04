@@ -39,10 +39,10 @@ router.post('/import', requireHost, (req, res) => {
   }
 });
 
-// Get all players in session (anyone can view)
+// Get all players in session with stats (anyone can view)
 router.get('/session/:sessionId', (req, res) => {
   try {
-    const players = sessionService.getSessionPlayers(req.params.sessionId);
+    const players = sessionService.getPlayersWithStats(req.params.sessionId);
     res.json({ players });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,6 +60,39 @@ router.put('/:playerId/skill', requireHost, (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Set player status (break = anyone, others = host only)
+router.put('/:playerId/status', (req, res) => {
+  try {
+    const { sessionId, status } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
+
+    // 'break' can be toggled by the player themselves (viewer)
+    // All other status changes require host
+    const viewerAllowed = ['break', 'waiting']; // player can go on break or come back
+    if (!viewerAllowed.includes(status)) {
+      // Check host access
+      const hostSessions = req.signedCookies.hostSessions;
+      let isHost = false;
+      try {
+        if (hostSessions) {
+          const authorized = JSON.parse(hostSessions);
+          isHost = Array.isArray(authorized) && authorized.includes(Number(sessionId));
+        }
+      } catch {
+        // not a host
+      }
+      if (!isHost) {
+        return res.status(403).json({ error: 'Host access required for this status change' });
+      }
+    }
+
+    sessionService.setPlayerStatus(req.params.playerId, sessionId, status);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

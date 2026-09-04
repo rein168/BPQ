@@ -1,12 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="76" fill="#667eea"/>
-  <g transform="translate(256,240)">
-    <!-- Shuttlecock -->
-    <ellipse cx="0" cy="40" rx="48" ry="58" fill="white" opacity="0.95"/>
-    <path d="M-32,-65 Q-22,-12 0,40 Q22,-12 32,-65 Z" fill="white" opacity="0.9"/>
-    <path d="M-54,-40 Q-28,-12 0,40 Q-14,-25 -22,-80 Z" fill="white" opacity="0.7"/>
-    <path d="M54,-40 Q28,-12 0,40 Q14,-25 22,-80 Z" fill="white" opacity="0.7"/>
-    <circle cx="0" cy="40" r="16" fill="#667eea"/>
-  </g>
-  <text x="256" y="450" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="white">BBQ</text>
+  <rect width="512" height="512" rx="72" fill="#1A8F55"/>
+  <!-- BBQ skewer (diagonal stick) -->
+  <line x1="130" y1="400" x2="392" y2="105" stroke="#C4985A" stroke-width="12" stroke-linecap="round"/>
+  <line x1="130" y1="400" x2="392" y2="105" stroke="#D4A843" stroke-width="8" stroke-linecap="round"/>
+  <!-- Skewer pointed tip -->
+  <polygon points="398,98 392,105 386,98 392,88" fill="#D4A843"/>
+  <!-- Shuttlecock cork (base) -->
+  <ellipse cx="232" cy="290" rx="38" ry="44" fill="#FFFFFF" opacity="0.95" transform="rotate(-40, 232, 290)"/>
+  <!-- Shuttlecock feathers -->
+  <path d="M210,274 Q204,218 244,162 Q256,206 248,264 Z" fill="#FFFFFF" opacity="0.92"/>
+  <path d="M228,260 Q238,198 282,156 Q282,200 266,254 Z" fill="#FFFFFF" opacity="0.85"/>
+  <path d="M194,284 Q172,232 188,172 Q214,210 220,268 Z" fill="#FFFFFF" opacity="0.75"/>
+  <path d="M244,252 Q266,194 316,168 Q300,220 278,260 Z" fill="#FFFFFF" opacity="0.68"/>
+  <!-- Cork ring detail -->
+  <ellipse cx="232" cy="294" rx="22" ry="25" fill="none" stroke="#1A8F55" stroke-width="4" opacity="0.4" transform="rotate(-40, 232, 294)"/>
+  <!-- BBQ text -->
+  <text x="256" y="462" text-anchor="middle" font-family="'Plus Jakarta Sans',system-ui,sans-serif" font-size="68" font-weight="800" fill="#FFFFFF" letter-spacing="5">BBQ</text>
 </svg>

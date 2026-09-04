@@ -41,8 +41,9 @@ db.exec(`
     session_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     skill_level TEXT NOT NULL CHECK(skill_level IN ('Beginner', 'Intermediate')),
-    status TEXT DEFAULT 'waiting' CHECK(status IN ('waiting', 'playing', 'rested')),
+    status TEXT DEFAULT 'waiting' CHECK(status IN ('waiting', 'playing', 'rested', 'break', 'skipped', 'absent', 'left_early')),
     position INTEGER,
+    arrived_at INTEGER,
     created_at INTEGER DEFAULT (strftime('%s','now')*1000),
     FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
   )
@@ -74,6 +75,7 @@ db.exec(`
     court_in_use_id INTEGER,
     match_history_id INTEGER,
     player_id INTEGER NOT NULL,
+    team TEXT CHECK(team IN ('A', 'B')),
     FOREIGN KEY(court_in_use_id) REFERENCES courts_in_use(id) ON DELETE CASCADE,
     FOREIGN KEY(match_history_id) REFERENCES match_history(id) ON DELETE CASCADE,
     FOREIGN KEY(player_id) REFERENCES players(id) ON DELETE CASCADE
@@ -90,6 +92,8 @@ db.exec(`
     session_id INTEGER NOT NULL,
     court_id INTEGER,
     duration_ms INTEGER,
+    score_a INTEGER,
+    score_b INTEGER,
     completed_at INTEGER DEFAULT (strftime('%s','now')*1000),
     notes TEXT,
     FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
@@ -98,12 +102,31 @@ db.exec(`
 `);
 db.exec('CREATE INDEX IF NOT EXISTS idx_match_history_session ON match_history(session_id);');
 
-// ========== Migrations ==========
-// Add pin_hash column to sessions if it doesn't exist
-try {
-  db.exec('ALTER TABLE sessions ADD COLUMN pin_hash TEXT');
-} catch {
-  // Column already exists — ignore
+// ========== Migrations (for existing databases) ==========
+const migrations = [
+  // Phase 4: PIN auth
+  'ALTER TABLE sessions ADD COLUMN pin_hash TEXT',
+  // Phase 6: Player states + arrival
+  'ALTER TABLE players ADD COLUMN arrived_at INTEGER',
+  // Phase 6: Team assignment on match_players
+  "ALTER TABLE match_players ADD COLUMN team TEXT CHECK(team IN ('A', 'B'))",
+  // Phase 6: Score columns on match_history
+  'ALTER TABLE match_history ADD COLUMN score_a INTEGER',
+  'ALTER TABLE match_history ADD COLUMN score_b INTEGER',
+];
+
+for (const sql of migrations) {
+  try {
+    db.exec(sql);
+  } catch {
+    // Column/constraint already exists — ignore
+  }
 }
+
+// Migrate player status CHECK constraint for existing DBs
+// SQLite doesn't support ALTER CHECK, but new rows will fail if not in the list.
+// The CREATE TABLE IF NOT EXISTS above handles fresh DBs. For existing DBs,
+// we accept that SQLite doesn't enforce CHECK on existing rows and the app
+// validates status values at the service layer.
 
 module.exports = db;

@@ -1,12 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="28" fill="#667eea"/>
-  <g transform="translate(96,96)">
-    <!-- Shuttlecock -->
-    <ellipse cx="0" cy="15" rx="18" ry="22" fill="white" opacity="0.95"/>
-    <path d="M-12,-25 Q-8,-5 0,15 Q8,-5 12,-25 Z" fill="white" opacity="0.9"/>
-    <path d="M-20,-15 Q-10,-5 0,15 Q-5,-10 -8,-30 Z" fill="white" opacity="0.7"/>
-    <path d="M20,-15 Q10,-5 0,15 Q5,-10 8,-30 Z" fill="white" opacity="0.7"/>
-    <circle cx="0" cy="15" r="6" fill="#667eea"/>
-  </g>
-  <text x="96" y="170" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="white">BBQ</text>
+  <rect width="192" height="192" rx="28" fill="#1A8F55"/>
+  <!-- BBQ skewer (diagonal stick) -->
+  <line x1="52" y1="148" x2="145" y2="42" stroke="#C4985A" stroke-width="5" stroke-linecap="round"/>
+  <line x1="52" y1="148" x2="145" y2="42" stroke="#D4A843" stroke-width="3" stroke-linecap="round"/>
+  <!-- Skewer pointed tip -->
+  <polygon points="148,38 145,42 142,38 145,34" fill="#D4A843"/>
+  <!-- Shuttlecock cork (base) -->
+  <ellipse cx="88" cy="108" rx="14" ry="16" fill="#FFFFFF" opacity="0.95" transform="rotate(-40, 88, 108)"/>
+  <!-- Shuttlecock feathers -->
+  <path d="M80,102 Q78,82 90,62 Q96,78 94,98 Z" fill="#FFFFFF" opacity="0.92"/>
+  <path d="M86,98 Q90,76 106,60 Q106,78 100,96 Z" fill="#FFFFFF" opacity="0.85"/>
+  <path d="M74,106 Q66,88 72,66 Q82,80 84,100 Z" fill="#FFFFFF" opacity="0.75"/>
+  <path d="M92,96 Q100,74 118,64 Q112,84 104,98 Z" fill="#FFFFFF" opacity="0.68"/>
+  <!-- Cork ring detail -->
+  <ellipse cx="88" cy="110" rx="8" ry="9" fill="none" stroke="#1A8F55" stroke-width="1.5" opacity="0.4" transform="rotate(-40, 88, 110)"/>
+  <!-- BBQ text -->
+  <text x="96" y="172" text-anchor="middle" font-family="'Plus Jakarta Sans',system-ui,sans-serif" font-size="26" font-weight="800" fill="#FFFFFF" letter-spacing="2">BBQ</text>
 </svg>

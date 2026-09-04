@@ -1,14 +1,13 @@
 /* eslint-env serviceworker */
-const CACHE_NAME = 'bbq-v1';
+const CACHE_NAME = 'bbq-v2';
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
+  '/styles.css',
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
   'https://cdn.socket.io/4.5.4/socket.io.min.js'
 ];
 

@@ -53,8 +53,8 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
       connectSrc: ["'self'", "ws:", "wss:"],
       workerSrc: ["'self'"],
       imgSrc: ["'self'", "data:"],
@@ -126,6 +126,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start server
 server.listen(port, () => {
-  console.log(`\n🎾 BPQ (Badminton Players Queueing) running on port ${port}`);
+  console.log(`\n🏸 BBQ (Badminton Batch Queueing) running on port ${port}`);
   console.log(`📱 Open http://localhost:${port}\n`);
 });

@@ -3,141 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BPQ - Badminton Players Queueing</title>
+  <title>BBQ - Badminton Batch Queueing</title>
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#667eea" />
+  <meta name="theme-color" content="#1A8F55" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="BBQ" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
   <style>
-    body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .container-center {
-      max-width: 900px;
-      width: 100%;
-    }
-    .card-header-custom {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px 20px;
+    .dashboard-hero {
       text-align: center;
-      border-radius: 15px 15px 0 0;
+      padding: 48px 20px 32px;
     }
-    .card-header-custom h1 {
+    .dashboard-hero svg {
+      width: 72px;
+      height: 72px;
+      margin-bottom: 12px;
+    }
+    .dashboard-hero h1 {
+      font-size: var(--text-3xl);
+      color: var(--color-primary);
+      margin-bottom: 4px;
+    }
+    .dashboard-hero p {
+      color: var(--text-secondary);
+      font-size: var(--text-md);
       margin: 0;
-      font-weight: 700;
-      font-size: 2.5rem;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-    }
-    .card-header-custom .subtitle {
-      font-size: 1rem;
-      opacity: 0.95;
-      margin-top: 5px;
-    }
-    .btn-action {
-      border-radius: 12px;
-      padding: 12px 24px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-    .btn-action:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
     .session-card {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      margin-bottom: 15px;
-      transition: all 0.3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.15s;
+      text-decoration: none;
+      color: inherit;
     }
-    .session-card:hover {
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-      transform: translateY(-2px);
+    .session-card:last-child { border-bottom: none; }
+    .session-card:hover { background: var(--neutral-50); }
+    .session-status {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
     }
-    .session-badge {
-      font-size: 0.85rem;
-      padding: 5px 12px;
-      border-radius: 20px;
-    }
-    .badge-active {
-      background-color: #28a745;
-      color: white;
-    }
-    .badge-ended {
-      background-color: #6c757d;
-      color: white;
-    }
+    .session-status-active { background: var(--green-100); color: var(--green-900); }
+    .session-status-ended  { background: var(--neutral-200); color: var(--neutral-600); }
   </style>
 </head>
 <body>
-  <div class="container container-center">
-    <div class="card border-0 shadow-lg">
-      <div class="card-header-custom">
-        <h1>🏸 BPQ</h1>
-        <div class="subtitle">Badminton Players Queueing System</div>
-      </div>
-      <div class="card-body p-5">
-        <!-- Create New Session -->
-        <div class="mb-5">
-          <h4 class="mb-3">Start a New Session</h4>
-          <form id="createSessionForm" class="d-flex gap-2 flex-wrap">
-            <input
-              type="text"
-              id="sessionNameInput"
-              class="form-control form-control-lg"
-              placeholder="Session name (e.g., Tuesday Night)"
-              required
-              style="flex: 1; min-width: 200px;"
-            />
-            <input
-              type="text"
-              id="sessionPinInput"
-              class="form-control form-control-lg"
+  <!-- Top Nav -->
+  <nav class="bbq-topnav">
+    <div class="bbq-topnav__logo">
+      <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="34" height="34" rx="7" fill="var(--color-primary)"/>
+        <line x1="9" y1="26" x2="26" y2="7" stroke="#D4A843" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="15.5" cy="19" rx="4" ry="5" fill="#fff" opacity="0.95" transform="rotate(-40, 15.5, 19)"/>
+        <path d="M13,17.5 Q12.5,13 16,9 Q17,12.5 16.5,17 Z" fill="#fff" opacity="0.9"/>
+        <path d="M15,16 Q16,12 19,9 Q19,13 17.5,16.5 Z" fill="#fff" opacity="0.8"/>
+      </svg>
+      <span>BBQ</span>
+    </div>
+    <div class="bbq-topnav__title"></div>
+    <div class="bbq-topnav__actions"></div>
+  </nav>
+
+  <main style="max-width: 640px; margin: 0 auto; padding: 0 16px 40px;">
+    <!-- Hero -->
+    <div class="dashboard-hero">
+      <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="72" height="72" rx="16" fill="var(--color-primary)"/>
+        <line x1="18" y1="56" x2="56" y2="14" stroke="#D4A843" stroke-width="3.5" stroke-linecap="round"/>
+        <ellipse cx="32" cy="40" rx="9" ry="11" fill="#fff" opacity="0.95" transform="rotate(-40, 32, 40)"/>
+        <path d="M28,37 Q27,28 33,20 Q35,27 34,36 Z" fill="#fff" opacity="0.9"/>
+        <path d="M31,34 Q33,26 39,20 Q39,28 36,35 Z" fill="#fff" opacity="0.8"/>
+        <path d="M25,39 Q22,32 24,23 Q29,29 29,37 Z" fill="#fff" opacity="0.7"/>
+      </svg>
+      <h1>BBQ</h1>
+      <p>Badminton Batch Queueing</p>
+    </div>
+
+    <!-- Create Session -->
+    <div class="bbq-card" style="margin-bottom: 24px;">
+      <div class="bbq-card__header"><i class="bi bi-plus-circle"></i> New Session</div>
+      <div class="bbq-card__body">
+        <form id="createSessionForm">
+          <input type="text" id="sessionNameInput"
+            placeholder="Session name (e.g., Tuesday Night)"
+            required
+            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-md); margin-bottom:8px; background:var(--bg-page); color:var(--text-primary);" />
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="sessionPinInput"
               placeholder="Host PIN (4-6 digits)"
-              pattern="\d{4,6}"
-              maxlength="6"
-              inputmode="numeric"
-              style="max-width: 180px;"
-            />
-            <button type="submit" class="btn btn-primary btn-lg btn-action">
-              <i class="bi bi-plus-lg"></i> Create Session
+              pattern="\d{4,6}" maxlength="6" inputmode="numeric"
+              style="flex:1; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); background:var(--bg-page); color:var(--text-primary);" />
+            <button type="submit" class="btn-bbq btn-bbq-primary">
+              <i class="bi bi-plus-lg"></i> Create
             </button>
-          </form>
-          <small class="text-muted mt-1 d-block">PIN protects host actions (allocate, finish, end). Leave blank for open sessions.</small>
-        </div>
-
-        <hr />
-
-        <!-- Active Sessions -->
-        <div>
-          <h4 class="mb-3">Active Sessions</h4>
-          <div id="sessionsContainer">
-            <div class="text-center text-muted py-4">
-              <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-              <p class="mt-2">No active sessions. Create one to get started!</p>
-            </div>
           </div>
+          <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">PIN protects host actions. Leave blank for open sessions.</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Active Sessions -->
+    <div class="bbq-card">
+      <div class="bbq-card__header"><i class="bi bi-calendar-event"></i> Sessions</div>
+      <div id="sessionsContainer">
+        <div class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <p>No sessions yet. Create one to get started!</p>
         </div>
       </div>
     </div>
-  </div>
+  </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
     const socket = io();
 
-    // Create new session
+    // XSS-safe text helper
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // Create session
     document.getElementById('createSessionForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('sessionNameInput').value.trim();
@@ -152,21 +147,14 @@
         });
         const data = await response.json();
         if (data.success) {
-          window.location.href = `/session/${data.sessionId}`;
+          window.location.href = '/session/' + data.sessionId;
         }
       } catch (err) {
         alert('Error creating session: ' + err.message);
       }
     });
 
-    // XSS-safe text helper
-    function esc(str) {
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
-
-    // Load sessions on page load
+    // Load sessions
     async function loadSessions() {
       try {
         const response = await fetch('/api/sessions');
@@ -180,50 +168,35 @@
     function displaySessions(sessions) {
       const container = document.getElementById('sessionsContainer');
       if (!sessions || sessions.length === 0) {
-        container.innerHTML = `
-          <div class="text-center text-muted py-4">
-            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-            <p class="mt-2">No sessions yet. Create one to get started!</p>
-          </div>
-        `;
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>No sessions yet. Create one to get started!</p></div>';
         return;
       }
 
-      container.innerHTML = sessions
-        .map(
-          (session) => `
-        <div class="session-card card">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title mb-1">${esc(session.name)} ${session.hasPin ? '<i class="bi bi-lock-fill text-muted" title="PIN protected"></i>' : ''}</h5>
-              <small class="text-muted">
-                <i class="bi bi-calendar"></i>
-                ${new Date(session.created_at).toLocaleString()}
-              </small>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-              <span class="session-badge ${session.status === 'active' ? 'badge-active' : 'badge-ended'}">
-                ${session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-              </span>
-              <a href="/session/${session.id}" class="btn btn-outline-primary btn-sm btn-action">
-                <i class="bi bi-arrow-right"></i> Open
-              </a>
-            </div>
-          </div>
-        </div>
-      `
-        )
-        .join('');
+      container.innerHTML = sessions.map(session =>
+        '<a href="/session/' + session.id + '" class="session-card">' +
+          '<div>' +
+            '<div style="font-weight:500;">' + esc(session.name) +
+              (session.hasPin ? ' <i class="bi bi-lock-fill" style="color:var(--text-muted); font-size:0.8em;"></i>' : '') +
+            '</div>' +
+            '<div style="font-size:var(--text-xs); color:var(--text-muted);">' +
+              '<i class="bi bi-calendar"></i> ' + new Date(session.created_at).toLocaleString() +
+            '</div>' +
+          '</div>' +
+          '<span class="session-status session-status-' + session.status + '">' +
+            session.status.charAt(0).toUpperCase() + session.status.slice(1) +
+          '</span>' +
+        '</a>'
+      ).join('');
     }
 
     loadSessions();
-    setInterval(loadSessions, 5000); // Refresh every 5 seconds
+    setInterval(loadSessions, 5000);
 
-    // Register service worker
+    // Service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('SW registered:', reg.scope))
-        .catch((err) => console.warn('SW registration failed:', err));
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.warn('SW registration failed:', err));
     }
   </script>
 </body>

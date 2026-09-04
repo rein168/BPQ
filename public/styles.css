@@ -1,0 +1,633 @@
+/* ============================================================
+   BBQ — Global Design Tokens & Base Styles
+   Palette C: Bright Green + Coral Pop
+   Fonts: Plus Jakarta Sans (headings) + DM Sans (body/UI)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+
+/* ---------- Tokens ---------- */
+:root {
+  /* Brand */
+  --green-900: #0D5C35;
+  --green-700: #1A8F55;
+  --green-500: #2BC47A;
+  --green-300: #7DDBA3;
+  --green-100: #D6F5E3;
+  --green-50:  #EDFAF2;
+
+  --coral-600: #C94535;
+  --coral-500: #E85D4A;
+  --coral-400: #F07E6E;
+  --coral-100: #FDE8E4;
+
+  /* Neutrals */
+  --neutral-900: #1A2420;
+  --neutral-800: #2A3630;
+  --neutral-700: #3D4F46;
+  --neutral-600: #556B60;
+  --neutral-500: #7A8E83;
+  --neutral-400: #A3B5AB;
+  --neutral-300: #C8D5CD;
+  --neutral-200: #E2EAE5;
+  --neutral-100: #F0F4F2;
+  --neutral-50:  #FAFAF7;
+
+  /* Semantic */
+  --bg-page:     var(--neutral-50);
+  --bg-card:     #FFFFFF;
+  --bg-nav:      #FFFFFF;
+  --text-primary:   var(--neutral-900);
+  --text-secondary: var(--neutral-600);
+  --text-muted:     var(--neutral-500);
+  --border:         var(--neutral-200);
+  --border-subtle:  var(--neutral-100);
+
+  --color-primary:     var(--green-700);
+  --color-primary-hover: var(--green-900);
+  --color-accent:      var(--coral-500);
+  --color-accent-hover: var(--coral-600);
+  --color-success:     var(--green-500);
+  --color-danger:      var(--coral-500);
+  --color-warning:     #D4A843;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(26,36,32,0.06);
+  --shadow-md: 0 4px 12px rgba(26,36,32,0.08);
+  --shadow-lg: 0 8px 24px rgba(26,36,32,0.12);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 50px;
+
+  /* Type scale */
+  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-body:    'DM Sans', system-ui, -apple-system, sans-serif;
+
+  --text-xs:  0.75rem;   /* 12px */
+  --text-sm:  0.8125rem; /* 13px */
+  --text-md:  0.9375rem; /* 15px */
+  --text-lg:  1.125rem;  /* 18px */
+  --text-xl:  1.375rem;  /* 22px */
+  --text-2xl: 1.75rem;   /* 28px */
+  --text-3xl: 2.25rem;   /* 36px */
+
+  /* Nav */
+  --nav-height: 60px;
+  --nav-bottom-height: 56px;
+}
+
+/* ---------- Dark mode ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-page:     #0F1A14;
+    --bg-card:     #1A2820;
+    --bg-nav:      #152019;
+    --text-primary:   #E8F0EB;
+    --text-secondary: #A3B5AB;
+    --text-muted:     #7A8E83;
+    --border:         #2A3E32;
+    --border-subtle:  #1F3028;
+
+    --color-primary:      var(--green-500);
+    --color-primary-hover: var(--green-300);
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg-page:     #0F1A14;
+  --bg-card:     #1A2820;
+  --bg-nav:      #152019;
+  --text-primary:   #E8F0EB;
+  --text-secondary: #A3B5AB;
+  --text-muted:     #7A8E83;
+  --border:         #2A3E32;
+  --border-subtle:  #1F3028;
+
+  --color-primary:      var(--green-500);
+  --color-primary-hover: var(--green-300);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+/* ---------- Reset & Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Room for bottom nav */
+  padding-bottom: calc(var(--nav-bottom-height) + 16px);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--text-3xl); font-weight: 800; }
+h2 { font-size: var(--text-2xl); }
+h3 { font-size: var(--text-xl); }
+h4 { font-size: var(--text-lg); font-weight: 600; }
+
+p { margin: 0 0 1em; }
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover { color: var(--color-primary-hover); }
+
+/* ---------- Top Nav ---------- */
+.bbq-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  background: var(--bg-nav);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.bbq-topnav__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.bbq-topnav__logo svg {
+  width: 34px;
+  height: 34px;
+}
+
+.bbq-topnav__logo span {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  color: var(--color-primary);
+}
+
+.bbq-topnav__title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bbq-topnav__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ---------- Bottom Nav ---------- */
+.bbq-bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--nav-bottom-height);
+  background: var(--bg-nav);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(26,36,32,0.06);
+  display: flex;
+  align-items: stretch;
+  /* Safe area for notched phones */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bbq-bottomnav__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  transition: color 0.15s;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.bbq-bottomnav__tab i {
+  font-size: 20px;
+  transition: color 0.15s;
+}
+
+.bbq-bottomnav__tab.active,
+.bbq-bottomnav__tab:hover {
+  color: var(--color-primary);
+}
+
+.bbq-bottomnav__tab.active i {
+  color: var(--color-primary);
+}
+
+.bbq-bottomnav__tab.host-only-tab {
+  /* Hidden for viewers via JS — display toggled by setRole() */
+}
+
+/* ---------- Cards ---------- */
+.bbq-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.bbq-card__header {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  padding: 12px 16px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-md);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bbq-card__body {
+  padding: 16px;
+}
+
+/* ---------- Buttons ---------- */
+.btn-bbq {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.btn-bbq:active {
+  transform: scale(0.97);
+}
+
+.btn-bbq-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.btn-bbq-primary:hover {
+  background: var(--color-primary-hover);
+  color: #fff;
+}
+
+.btn-bbq-accent {
+  background: var(--color-accent);
+  color: #fff;
+}
+.btn-bbq-accent:hover {
+  background: var(--color-accent-hover);
+  color: #fff;
+}
+
+.btn-bbq-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+}
+.btn-bbq-outline:hover {
+  background: var(--green-50);
+}
+
+.btn-bbq-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+}
+.btn-bbq-ghost:hover {
+  background: var(--neutral-100);
+  color: var(--text-primary);
+}
+
+.btn-bbq-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1.5px solid var(--color-danger);
+}
+.btn-bbq-danger:hover {
+  background: var(--coral-100);
+}
+
+.btn-bbq-sm {
+  font-size: var(--text-xs);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Badges ---------- */
+.badge-skill {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  display: inline-block;
+}
+
+.badge-beginner {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+
+.badge-intermediate {
+  background: #FFF3CD;
+  color: #856404;
+}
+
+/* Player status badges */
+.badge-status {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-waiting   { background: var(--green-100); color: var(--green-900); }
+.badge-playing   { background: var(--coral-100); color: var(--coral-600); }
+.badge-break     { background: #FFF3CD; color: #856404; }
+.badge-skipped   { background: var(--neutral-200); color: var(--neutral-700); }
+.badge-absent    { background: var(--neutral-100); color: var(--neutral-500); }
+.badge-rested    { background: var(--green-50); color: var(--green-700); }
+
+/* W/L record */
+.record-w { color: var(--green-700); font-weight: 700; }
+.record-l { color: var(--coral-500); font-weight: 700; }
+
+/* ---------- Timer ---------- */
+.match-timer {
+  font-family: var(--font-body);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--color-primary);
+  padding: 8px 0;
+}
+
+/* ---------- Court card ---------- */
+.court-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.court-card__header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 10px 16px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.court-card__header .badge-live {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: var(--text-xs);
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+}
+
+.court-card__body {
+  padding: 16px;
+}
+
+.court-card--empty .court-card__header {
+  background: var(--neutral-400);
+}
+
+.court-card--empty .court-card__body {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 16px;
+  font-size: var(--text-sm);
+}
+
+/* ---------- Player row (in match) ---------- */
+.match-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--neutral-50);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: var(--text-sm);
+}
+
+/* ---------- Queue player row ---------- */
+.queue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s;
+}
+
+.queue-row:last-child {
+  border-bottom: none;
+}
+
+.queue-row:hover {
+  background: var(--neutral-50);
+}
+
+.queue-row__name {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.queue-row__games {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.queue-row__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ---------- Notification toast ---------- */
+.bbq-toast {
+  position: fixed;
+  top: calc(var(--nav-height) + 12px);
+  right: 16px;
+  z-index: 200;
+  max-width: 340px;
+  background: var(--bg-card);
+  border: 1px solid var(--green-300);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px 16px;
+  animation: bbq-slide-in 0.35s ease-out;
+}
+
+@keyframes bbq-slide-in {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+.bbq-toast__title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+
+.bbq-toast__body {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.bbq-toast__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+}
+
+/* ---------- Score entry ---------- */
+.score-input {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+  width: 72px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+
+.score-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(43,196,122,0.15);
+}
+
+/* ---------- Empty state ---------- */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state i {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* ---------- Tab content (for bottom nav routing) ---------- */
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* ---------- Role-based visibility ---------- */
+body.role-viewer .host-only { display: none !important; }
+body.role-viewer .host-only-tab { display: none !important; }
+
+/* ---------- Utilities ---------- */
+.text-muted { color: var(--text-muted) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.font-heading { font-family: var(--font-heading); }
+.font-tabular { font-variant-numeric: tabular-nums; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.gap-lg { gap: 16px; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
