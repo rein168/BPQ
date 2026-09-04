@@ -301,9 +301,6 @@
       margin-top: 2px;
     }
 
-    /* Import section */
-    .import-section { margin-bottom: 16px; }
-
     /* Court count bar */
     .court-count-bar {
       display: flex;
@@ -410,28 +407,6 @@
 
     <!-- QUEUE TAB -->
     <div id="tab-queue" class="tab-pane">
-      <!-- Import (host only) -->
-      <div class="bbq-card import-section host-only">
-        <div class="bbq-card__header"><i class="bi bi-file-text"></i> Import Players</div>
-        <div class="bbq-card__body">
-          <form id="importForm">
-            <textarea id="playerList" rows="4" placeholder="Paste player names, one per line"
-              style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); resize:vertical; background:var(--bg-page); color:var(--text-primary);"></textarea>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-              <select id="skillLevel" required
-                style="flex:1; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); background:var(--bg-card); color:var(--text-primary);">
-                <option value="">Skill Level</option>
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-              </select>
-              <button type="submit" class="btn-bbq btn-bbq-primary">
-                <i class="bi bi-upload"></i> Import
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
       <!-- Explainer -->
       <div style="display:flex; align-items:flex-start; gap:8px; padding:10px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-xs); color:var(--text-muted);">
         <i class="bi bi-info-circle" style="flex-shrink:0; margin-top:1px;"></i>
@@ -643,30 +618,6 @@
 
     socket.on('session:' + sessionId + ':court-assigned', (data) => {
       showCourtNotification(data);
-    });
-
-    // ===== Import =====
-    document.getElementById('importForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const playerNames = document.getElementById('playerList').value.trim().split('\n').filter(n => n.trim());
-      const skillLevel = document.getElementById('skillLevel').value;
-      if (!playerNames.length || !skillLevel) { alert('Please enter player names and select skill level'); return; }
-
-      const players = playerNames.map(name => ({ name: name.trim(), skill_level: skillLevel }));
-      try {
-        const response = await fetch('/api/players/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId), players })
-        });
-        const data = await response.json();
-        if (data.success) {
-          document.getElementById('playerList').value = '';
-          socket.emit('get-session-state', parseInt(sessionId));
-        }
-      } catch (err) {
-        alert('Error importing players: ' + err.message);
-      }
     });
 
     // ===== Actions =====
@@ -1203,6 +1154,12 @@
       const teamA = batch.slice(0, teamsPerSide);
       const teamB = batch.slice(teamsPerSide);
 
+      // Calculate how long the earliest player in this batch has been waiting
+      const earliestArrival = Math.min(...batch.map(p => p.arrived_at || p.created_at));
+      const waitMs = Date.now() - earliestArrival;
+      const waitMin = Math.floor(waitMs / 60000);
+      const waitStr = waitMin < 1 ? 'Just now' : waitMin + ' min waiting';
+
       // Header color and label vary by status
       let headerBg, statusLabel, statusIcon;
       if (status === 'ready') {
@@ -1227,9 +1184,10 @@
         '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">' + statusIcon + statusLabel + '</span>' +
       '</div>';
 
-      // Batch sub-header
-      html += '<div style="padding:6px 14px; font-size:var(--text-xs); color:var(--text-muted); border-bottom:1px solid var(--border-subtle); font-weight:600;">' +
-        'Batch ' + batchNum + (isFull ? '' : ' — waiting for ' + (playersPerCourt - batch.length) + ' more') +
+      // Batch sub-header with wait timer
+      html += '<div style="padding:6px 14px; font-size:var(--text-xs); color:var(--text-muted); border-bottom:1px solid var(--border-subtle); font-weight:600; display:flex; justify-content:space-between; align-items:center;">' +
+        '<span>Batch ' + batchNum + (isFull ? '' : ' — waiting for ' + (playersPerCourt - batch.length) + ' more') + '</span>' +
+        '<span style="font-variant-numeric:tabular-nums;"><i class="bi bi-stopwatch"></i> ' + waitStr + '</span>' +
       '</div>';
 
       // Players body

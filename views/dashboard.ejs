@@ -135,7 +135,7 @@
         <form id="createSessionForm">
           <input type="text" id="sessionNameInput"
             placeholder="Game name (e.g., Tuesday Night)"
-            required class="form-input"
+            class="form-input"
             style="width:100%; margin-bottom:8px; font-size:var(--text-md);" />
           <div class="form-row">
             <input type="date" id="gameDateInput" class="form-input" />
@@ -144,18 +144,11 @@
               pattern="\d{4,6}" maxlength="6" inputmode="numeric"
               class="form-input" />
           </div>
-          <div class="form-row" style="margin-bottom:8px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <label for="courtCountInput" style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:500; white-space:nowrap;">Courts</label>
-              <input type="number" id="courtCountInput" value="4" min="1" max="20" inputmode="numeric"
-                class="form-input" style="width:56px; text-align:center; padding:10px 6px;" />
-            </div>
-          </div>
           <button type="submit" class="btn-bbq btn-bbq-primary" style="width:100%;">
             <i class="bi bi-plus-lg"></i> Create Game
           </button>
           <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">
-            PIN protects host actions. Leave blank for open games. Court count can be adjusted later.
+            PIN protects host actions. Leave blank for open games. Courts are added automatically as players join.
           </p>
         </form>
       </div>
@@ -214,17 +207,26 @@
     // Create session
     document.getElementById('createSessionForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('sessionNameInput').value.trim();
-      if (!name) return;
-      const pin = document.getElementById('sessionPinInput').value.trim() || undefined;
-      const courtCount = parseInt(document.getElementById('courtCountInput').value, 10) || 4;
       const gameDate = document.getElementById('gameDateInput').value || undefined;
+      let name = document.getElementById('sessionNameInput').value.trim();
+      // Default name to formatted date if empty
+      if (!name) {
+        if (gameDate) {
+          try {
+            const d = new Date(gameDate + 'T00:00:00');
+            name = d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+          } catch { name = gameDate; }
+        } else {
+          name = new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+        }
+      }
+      const pin = document.getElementById('sessionPinInput').value.trim() || undefined;
 
       try {
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, pin, courtCount, gameDate })
+          body: JSON.stringify({ name, pin, gameDate })
         });
         const data = await response.json();
         if (data.success) {
@@ -274,7 +276,7 @@
           '</a>' +
           '<div class="session-card__actions">' +
             (session.status === 'active'
-              ? '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="event.stopPropagation(); showQrModal(' + session.id + ')" title="RSVP QR"><i class="bi bi-qr-code"></i></button>'
+              ? '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ')" title="RSVP QR" style="padding:4px 6px; font-size:24px; line-height:1;"><i class="bi bi-qr-code"></i></button>'
               : '') +
             '<span class="session-status session-status-' + session.status + '">' +
               session.status.charAt(0).toUpperCase() + session.status.slice(1) +

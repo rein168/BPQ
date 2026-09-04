@@ -108,13 +108,13 @@ const sessionService = {
   },
 
   // ===== SESSION MANAGEMENT =====
-  createSession(name, pinHash = null, courtCount = 4, gameDate = null) {
+  createSession(name, pinHash = null, courtCount = 0, gameDate = null) {
     const s = prepareStatements();
-    const count = Math.max(1, Math.min(courtCount, 20));
+    const count = Math.max(0, Math.min(courtCount, 20));
     const result = s.createSession.run(name, pinHash, count, gameDate, 'active');
     const sessionId = result.lastInsertRowid;
 
-    // Auto-create courts for this game
+    // Pre-create courts if a count was explicitly provided
     for (let i = 1; i <= count; i++) {
       s.createCourt.run('Court ' + i, uuidv4(), sessionId);
     }
@@ -151,6 +151,7 @@ const sessionService = {
     });
 
     insertMany(players);
+    this.autoAdjustCourtCount(sessionId);
     this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return players.length;
@@ -169,6 +170,7 @@ const sessionService = {
     const players = s.getSessionPlayers.all(sessionId);
     const nextPos = players.length + 1;
     const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, now);
+    this.autoAdjustCourtCount(sessionId);
     this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
@@ -258,6 +260,26 @@ const sessionService = {
   getOccupiedCourtIds(sessionId) {
     const s = prepareStatements();
     return s.getOccupiedCourtIds.all(sessionId).map(r => r.court_id);
+  },
+
+  // Auto-adjust court count based on active player count
+  // Creates courts as players join: floor(activePlayers / PLAYERS_PER_COURT)
+  // Never removes courts — host does that manually via +/-
+  autoAdjustCourtCount(sessionId) {
+    const s = prepareStatements();
+    const players = s.getSessionPlayers.all(sessionId);
+    const activePlayers = players.filter(p =>
+      ['waiting', 'rested', 'playing'].includes(p.status)
+    );
+    const neededCourts = Math.max(1, Math.floor(activePlayers.length / PLAYERS_PER_COURT));
+    const currentCourts = s.getSessionCourts.all(sessionId, 'active');
+
+    if (neededCourts > currentCourts.length) {
+      for (let i = currentCourts.length + 1; i <= neededCourts; i++) {
+        s.createCourt.run('Court ' + i, uuidv4(), sessionId);
+      }
+      s.updateSessionCourtCount.run(neededCourts, sessionId);
+    }
   },
 
   // Auto-allocate: silently tries to fill any free courts when enough players are waiting

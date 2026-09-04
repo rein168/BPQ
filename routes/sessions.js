@@ -7,10 +7,18 @@ const { requireHost, hashPin, verifyPin, grantHostAccess } = require('../middlew
 router.post('/', (req, res) => {
   try {
     const { name, pin, courtCount, gameDate } = req.body;
-    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Session name required' });
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0 || trimmedName.length > 100) {
-      return res.status(400).json({ error: 'Session name must be 1-100 characters' });
+    let trimmedName = (name && typeof name === 'string') ? name.trim() : '';
+    // Default to formatted date if no name provided
+    if (trimmedName.length === 0) {
+      if (gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate)) {
+        const d = new Date(gameDate + 'T00:00:00');
+        trimmedName = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      } else {
+        trimmedName = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      }
+    }
+    if (trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Session name must be under 100 characters' });
     }
 
     // Validate PIN if provided
@@ -22,8 +30,8 @@ router.post('/', (req, res) => {
       pinHash = hashPin(pin);
     }
 
-    // Validate court count
-    const courts = courtCount ? Math.max(1, Math.min(parseInt(courtCount, 10) || 4, 20)) : 4;
+    // Court count: 0 by default — auto-created as players join
+    const courts = courtCount ? Math.max(0, Math.min(parseInt(courtCount, 10) || 0, 20)) : 0;
     const validDate = gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate) ? gameDate : null;
     const sessionId = sessionService.createSession(trimmedName, pinHash, courts, validDate);
 
