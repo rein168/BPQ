@@ -468,11 +468,13 @@ a:hover { color: var(--color-primary-hover); }
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--neutral-50);
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
   font-weight: 500;
   font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
 /* ---------- Queue player row ---------- */
