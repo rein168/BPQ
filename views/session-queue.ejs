@@ -1043,8 +1043,9 @@
       const waiting = allPlayers.filter(p => p.status === 'waiting' || p.status === 'rested').length;
       const onBreak = allPlayers.filter(p => p.status === 'break').length;
       const arrived = allPlayers.filter(p => p.arrived_at).length;
+      const maxPlayers = (sessionState && sessionState.config) ? sessionState.config.maxPlayers : '?';
       summaryEl.innerHTML =
-        '<div class="players-summary__stat"><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + allPlayers.length + '</strong> total</div>' +
+        '<div class="players-summary__stat"><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + allPlayers.length + '/' + maxPlayers + '</strong> registered</div>' +
         '<div class="players-summary__stat"><span class="arrival-dot arrival-dot--arrived"></span> <strong>' + arrived + '</strong> arrived</div>' +
         '<div class="players-summary__stat"><i class="bi bi-controller" style="color:var(--coral-500);"></i> <strong>' + playing + '</strong> playing</div>' +
         '<div class="players-summary__stat"><i class="bi bi-hourglass-split" style="color:var(--green-700);"></i> <strong>' + waiting + '</strong> waiting</div>' +

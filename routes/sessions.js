@@ -30,8 +30,8 @@ router.post('/', (req, res) => {
       pinHash = hashPin(pin);
     }
 
-    // Court count: 0 by default — auto-created as players join
-    const courts = courtCount ? Math.max(0, Math.min(parseInt(courtCount, 10) || 0, 20)) : 0;
+    // Court count: host sets this; minimum 1, maximum 20
+    const courts = Math.max(1, Math.min(parseInt(courtCount, 10) || 4, 20));
     const validDate = gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate) ? gameDate : null;
     const sessionId = sessionService.createSession(trimmedName, pinHash, courts, validDate);
 

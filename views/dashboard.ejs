@@ -139,6 +139,11 @@
             style="width:100%; margin-bottom:8px; font-size:var(--text-md);" />
           <div class="form-row">
             <input type="date" id="gameDateInput" class="form-input" />
+            <div class="form-sm" style="position:relative;">
+              <label for="courtCountInput" style="position:absolute; top:-8px; left:8px; font-size:10px; color:var(--text-muted); background:var(--bg-card); padding:0 4px;">Courts</label>
+              <input type="number" id="courtCountInput" value="4" min="1" max="20" inputmode="numeric"
+                class="form-input" style="width:72px; text-align:center;" />
+            </div>
             <input type="text" id="sessionPinInput"
               placeholder="Host PIN (4-6 digits)"
               pattern="\d{4,6}" maxlength="6" inputmode="numeric"
@@ -148,7 +153,7 @@
             <i class="bi bi-plus-lg"></i> Create Game
           </button>
           <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">
-            PIN protects host actions. Leave blank for open games. Courts are added automatically as players join.
+            Each court allows up to 8 players (4 playing, 4 rotating). PIN protects host actions.
           </p>
         </form>
       </div>
@@ -221,12 +226,13 @@
         }
       }
       const pin = document.getElementById('sessionPinInput').value.trim() || undefined;
+      const courtCount = parseInt(document.getElementById('courtCountInput').value, 10) || 4;
 
       try {
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, pin, gameDate })
+          body: JSON.stringify({ name, pin, courtCount, gameDate })
         });
         const data = await response.json();
         if (data.success) {

@@ -33,6 +33,12 @@ router.post('/register', (req, res) => {
       return res.status(409).json({ error: 'A player with that name is already in this session', playerId: duplicate.id });
     }
 
+    // Cap registration at courts × 8 (FCFS)
+    const maxPlayers = sessionService.getMaxPlayers(sessionId);
+    if (existing.length >= maxPlayers) {
+      return res.status(400).json({ error: 'Game is full (' + maxPlayers + ' players max for ' + (maxPlayers / 8) + ' courts). Contact the host to add more courts.' });
+    }
+
     const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel);
     res.json({ success: true, playerId });
   } catch (err) {
