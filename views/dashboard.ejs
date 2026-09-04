@@ -97,11 +97,23 @@
               class="form-control form-control-lg"
               placeholder="Session name (e.g., Tuesday Night)"
               required
+              style="flex: 1; min-width: 200px;"
+            />
+            <input
+              type="text"
+              id="sessionPinInput"
+              class="form-control form-control-lg"
+              placeholder="Host PIN (4-6 digits)"
+              pattern="\d{4,6}"
+              maxlength="6"
+              inputmode="numeric"
+              style="max-width: 180px;"
             />
             <button type="submit" class="btn btn-primary btn-lg btn-action">
               <i class="bi bi-plus-lg"></i> Create Session
             </button>
           </form>
+          <small class="text-muted mt-1 d-block">PIN protects host actions (allocate, finish, end). Leave blank for open sessions.</small>
         </div>
 
         <hr />
@@ -130,12 +142,13 @@
       e.preventDefault();
       const name = document.getElementById('sessionNameInput').value.trim();
       if (!name) return;
+      const pin = document.getElementById('sessionPinInput').value.trim() || undefined;
 
       try {
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
+          body: JSON.stringify({ name, pin })
         });
         const data = await response.json();
         if (data.success) {
@@ -182,7 +195,7 @@
         <div class="session-card card">
           <div class="card-body d-flex justify-content-between align-items-center">
             <div>
-              <h5 class="card-title mb-1">${esc(session.name)}</h5>
+              <h5 class="card-title mb-1">${esc(session.name)} ${session.hasPin ? '<i class="bi bi-lock-fill text-muted" title="PIN protected"></i>' : ''}</h5>
               <small class="text-muted">
                 <i class="bi bi-calendar"></i>
                 ${new Date(session.created_at).toLocaleString()}

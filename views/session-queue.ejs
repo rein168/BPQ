@@ -115,6 +115,19 @@
       background-color: #f3e5f5;
       color: #7b1fa2;
     }
+    /* Role-based visibility */
+    body.role-viewer .host-only { display: none !important; }
+    body.role-viewer .viewer-only { display: inline-block !important; }
+    body.role-host .viewer-only { display: none !important; }
+    .viewer-badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #e3f2fd;
+      color: #1976d2;
+      font-weight: 600;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>
@@ -131,20 +144,44 @@
           </div>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-primary btn-action" onclick="allocateCourts()" id="allocateBtn">
+          <button class="btn btn-primary btn-action host-only" onclick="allocateCourts()" id="allocateBtn">
             <i class="bi bi-lightning-fill"></i> Auto-Allocate
           </button>
-          <button class="btn btn-outline-danger btn-action" onclick="endSession()">
+          <button class="btn btn-outline-danger btn-action host-only" onclick="endSession()">
             <i class="bi bi-stop-circle"></i> End Session
+          </button>
+          <button class="btn btn-outline-secondary btn-action viewer-only" onclick="showPinModal()" id="unlockBtn" style="display:none;">
+            <i class="bi bi-unlock"></i> Host Login
           </button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- PIN Auth Modal -->
+  <div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title"><i class="bi bi-lock-fill"></i> Host PIN Required</h5>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Enter the host PIN to manage this session, or view as a player.</p>
+          <input type="text" id="pinInput" class="form-control form-control-lg text-center"
+            placeholder="Enter PIN" pattern="\d{4,6}" maxlength="6" inputmode="numeric" autocomplete="off" />
+          <div id="pinError" class="text-danger small mt-2" style="display:none;"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" onclick="skipPin()">View as Player</button>
+          <button type="button" class="btn btn-primary" onclick="submitPin()">Authenticate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="container-fluid py-4">
-    <!-- Import Roster Section -->
-    <div class="glass-card p-4 mb-4">
+    <!-- Import Roster Section (host only) -->
+    <div class="glass-card p-4 mb-4 host-only">
       <h5 class="mb-3"><i class="bi bi-file-text"></i> Import Player Roster</h5>
       <p class="text-muted small">Paste player names (one per line), then assign skill levels.</p>
       <form id="importForm" class="d-flex gap-2 flex-wrap">
@@ -206,6 +243,7 @@
     const sessionId = window.location.pathname.split('/').pop();
     const socket = io();
     let sessionState = null;
+    let userRole = 'viewer'; // default until checked
 
     // XSS-safe text helper
     function esc(str) {
@@ -213,6 +251,75 @@
       d.textContent = str;
       return d.innerHTML;
     }
+
+    // Check user role on load
+    async function checkRole() {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/role`);
+        const data = await response.json();
+        setRole(data.role);
+
+        // If session has PIN and user is not host, show modal
+        if (data.hasPin && data.role !== 'host') {
+          const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+          pinModal.show();
+        }
+      } catch (err) {
+        console.error('Error checking role:', err);
+        setRole('viewer');
+      }
+    }
+
+    function setRole(role) {
+      userRole = role;
+      document.body.classList.remove('role-host', 'role-viewer');
+      document.body.classList.add('role-' + role);
+    }
+
+    function showPinModal() {
+      const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+      pinModal.show();
+    }
+
+    async function submitPin() {
+      const pin = document.getElementById('pinInput').value.trim();
+      const errorEl = document.getElementById('pinError');
+      errorEl.style.display = 'none';
+
+      if (!pin) { errorEl.textContent = 'Please enter a PIN'; errorEl.style.display = 'block'; return; }
+
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setRole('host');
+          bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+          document.getElementById('pinInput').value = '';
+        } else {
+          errorEl.textContent = data.error || 'Incorrect PIN';
+          errorEl.style.display = 'block';
+        }
+      } catch (err) {
+        errorEl.textContent = 'Error authenticating';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    function skipPin() {
+      setRole('viewer');
+      bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+    }
+
+    // Enter key submits PIN
+    document.getElementById('pinInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitPin();
+    });
+
+    checkRole();
 
     // Join session
     socket.emit('join-session', parseInt(sessionId));
@@ -292,6 +399,23 @@
       }
     }
 
+    async function removePlayer(playerId) {
+      if (!confirm('Remove this player from the queue?')) return;
+      try {
+        const response = await fetch(`/api/players/${playerId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (!data.success) {
+          alert(data.error || 'Error removing player');
+        }
+      } catch (err) {
+        alert('Error removing player: ' + err.message);
+      }
+    }
+
     async function endSession() {
       if (!confirm('End this session? This action cannot be undone.')) return;
 
@@ -345,7 +469,7 @@
                     })
                     .join('')}
                 </div>
-                <button class="btn btn-success w-100 btn-action" onclick="finishMatch(${courtData.court.id})">
+                <button class="btn btn-success w-100 btn-action host-only" onclick="finishMatch(${courtData.court.id})">
                   <i class="bi bi-check-circle"></i> Game Finished
                 </button>
               </div>
@@ -372,6 +496,9 @@
               <strong>${esc(player.name)}</strong>
               <span class="skill-badge skill-${esc(player.skill_level.toLowerCase())} ms-2">${esc(player.skill_level)}</span>
             </div>
+            <button class="btn btn-outline-danger btn-sm host-only" onclick="removePlayer(${player.id})" title="Remove player">
+              <i class="bi bi-x-lg"></i>
+            </button>
           </div>
         `
           )

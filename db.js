@@ -26,6 +26,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
+    pin_hash TEXT,
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'ended')),
     created_at INTEGER DEFAULT (strftime('%s','now')*1000),
     ended_at INTEGER
@@ -97,8 +98,12 @@ db.exec(`
 `);
 db.exec('CREATE INDEX IF NOT EXISTS idx_match_history_session ON match_history(session_id);');
 
-// ========== Migration: drop old player_ids column if it exists ==========
-// SQLite doesn't support DROP COLUMN before 3.35.0, so we check and leave
-// the old column in place if present — new code uses the junction table.
+// ========== Migrations ==========
+// Add pin_hash column to sessions if it doesn't exist
+try {
+  db.exec('ALTER TABLE sessions ADD COLUMN pin_hash TEXT');
+} catch {
+  // Column already exists — ignore
+}
 
 module.exports = db;

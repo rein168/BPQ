@@ -10,7 +10,7 @@ function prepareStatements() {
   if (stmts) return stmts;
   stmts = {
     // Sessions
-    createSession: db.prepare('INSERT INTO sessions (name, status) VALUES (?, ?)'),
+    createSession: db.prepare('INSERT INTO sessions (name, pin_hash, status) VALUES (?, ?, ?)'),
     getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     getAllSessions: db.prepare('SELECT * FROM sessions ORDER BY created_at DESC'),
     endSession: db.prepare('UPDATE sessions SET status = ?, ended_at = ? WHERE id = ?'),
@@ -72,9 +72,9 @@ const sessionService = {
   },
 
   // ===== SESSION MANAGEMENT =====
-  createSession(name) {
+  createSession(name, pinHash = null) {
     const s = prepareStatements();
-    const result = s.createSession.run(name, 'active');
+    const result = s.createSession.run(name, pinHash, 'active');
     return result.lastInsertRowid;
   },
 
@@ -123,6 +123,17 @@ const sessionService = {
   updatePlayerStatus(playerId, status) {
     const s = prepareStatements();
     s.updatePlayerStatus.run(status, playerId);
+  },
+
+  removePlayer(playerId, sessionId) {
+    // Only remove if player is waiting (not mid-match)
+    const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
+    if (!player) throw new Error('Player not found in this session');
+    if (player.status === 'playing') {
+      throw new Error('Cannot remove a player who is currently playing');
+    }
+    db.prepare('DELETE FROM players WHERE id = ? AND session_id = ?').run(playerId, sessionId);
+    this.broadcastSessionState(sessionId);
   },
 
   // ===== COURT ALLOCATION & QUEUEING =====

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const sessionService = require('../services/sessionService');
+const { requireHost } = require('../middleware/auth');
 
-// Auto-allocate players to courts based on skill levels
-router.post('/allocate', (req, res) => {
+// Auto-allocate players to courts based on skill levels (host only)
+router.post('/allocate', requireHost, (req, res) => {
   try {
     const { sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
@@ -15,8 +16,8 @@ router.post('/allocate', (req, res) => {
   }
 });
 
-// End a match on a court (game finished)
-router.post('/:courtId/finish', (req, res) => {
+// End a match on a court (host only)
+router.post('/:courtId/finish', requireHost, (req, res) => {
   try {
     const { sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
@@ -28,7 +29,7 @@ router.post('/:courtId/finish', (req, res) => {
   }
 });
 
-// Get court status
+// Get court status (anyone can view)
 router.get('/:sessionId/:courtId/status', (req, res) => {
   try {
     const status = sessionService.getCourtStatus(req.params.sessionId, req.params.courtId);

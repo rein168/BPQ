@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const sessionService = require('../services/sessionService');
+const { requireHost } = require('../middleware/auth');
 
-// Import player roster (cut & paste + skill assignment)
-router.post('/import', (req, res) => {
+// Import player roster (host only)
+router.post('/import', requireHost, (req, res) => {
   try {
     const { sessionId, players } = req.body;
-    // players: [{ name: string, skill_level: 'Beginner' | 'Intermediate' }, ...]
 
     if (!sessionId || !Array.isArray(players) || players.length === 0) {
       return res.status(400).json({ error: 'Invalid input' });
@@ -39,7 +39,7 @@ router.post('/import', (req, res) => {
   }
 });
 
-// Get all players in session
+// Get all players in session (anyone can view)
 router.get('/session/:sessionId', (req, res) => {
   try {
     const players = sessionService.getSessionPlayers(req.params.sessionId);
@@ -49,14 +49,27 @@ router.get('/session/:sessionId', (req, res) => {
   }
 });
 
-// Update player skill level
-router.put('/:playerId/skill', (req, res) => {
+// Update player skill level (host only)
+router.put('/:playerId/skill', requireHost, (req, res) => {
   try {
     const { skillLevel } = req.body;
     if (!['Beginner', 'Intermediate'].includes(skillLevel)) {
       return res.status(400).json({ error: 'Invalid skill level' });
     }
     sessionService.updatePlayerSkill(req.params.playerId, skillLevel);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a player from session (host only)
+router.delete('/:playerId', requireHost, (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
+
+    sessionService.removePlayer(req.params.playerId, sessionId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
