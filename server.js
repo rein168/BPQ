@@ -56,7 +56,9 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
       connectSrc: ["'self'", "ws:", "wss:"],
+      workerSrc: ["'self'"],
       imgSrc: ["'self'", "data:"],
+      manifestSrc: ["'self'"],
     }
   }
 }));

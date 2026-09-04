@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="76" fill="#667eea"/>
+  <g transform="translate(256,240)">
+    <!-- Shuttlecock -->
+    <ellipse cx="0" cy="40" rx="48" ry="58" fill="white" opacity="0.95"/>
+    <path d="M-32,-65 Q-22,-12 0,40 Q22,-12 32,-65 Z" fill="white" opacity="0.9"/>
+    <path d="M-54,-40 Q-28,-12 0,40 Q-14,-25 -22,-80 Z" fill="white" opacity="0.7"/>
+    <path d="M54,-40 Q28,-12 0,40 Q14,-25 22,-80 Z" fill="white" opacity="0.7"/>
+    <circle cx="0" cy="40" r="16" fill="#667eea"/>
+  </g>
+  <text x="256" y="450" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="white">BBQ</text>
+</svg>
