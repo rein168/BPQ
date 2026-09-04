@@ -73,6 +73,7 @@ db.serialize(() => {
   `);
   db.run('CREATE INDEX IF NOT EXISTS idx_courts_in_use_session ON courts_in_use(session_id);');
   db.run('CREATE INDEX IF NOT EXISTS idx_courts_in_use_court ON courts_in_use(court_id);');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_courts_in_use_unique ON courts_in_use(session_id, court_id);');
 
   // ========== TABLE: match_history ==========
   // Records completed matches

@@ -6,9 +6,13 @@ const sessionService = require('../services/sessionService');
 router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Session name required' });
-    
-    const sessionId = await sessionService.createSession(name);
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Session name required' });
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Session name must be 1-100 characters' });
+    }
+
+    const sessionId = await sessionService.createSession(trimmedName);
     res.json({ success: true, sessionId });
   } catch (err) {
     res.status(500).json({ error: err.message });

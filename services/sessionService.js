@@ -140,17 +140,35 @@ const sessionService = {
     });
   },
 
+  // Get all courts currently in use for a session
+  async getOccupiedCourtIds(sessionId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT DISTINCT court_id FROM courts_in_use WHERE session_id = ?',
+        [sessionId],
+        (err, rows) => (err ? reject(err) : resolve((rows || []).map(r => r.court_id)))
+      );
+    });
+  },
+
   // Smart court allocation based on skill levels
   async autoAllocateCourts(sessionId) {
     try {
       const players = await this.getSessionPlayers(sessionId);
       const waitingPlayers = players.filter(p => p.status === 'waiting');
-      
+
       if (waitingPlayers.length < 4) {
         return { allocated: [], message: 'Not enough players for a game' };
       }
 
-      const courts = await this.getAllCourts();
+      const allCourts = await this.getAllCourts();
+      const occupiedIds = await this.getOccupiedCourtIds(sessionId);
+      const courts = allCourts.filter(c => !occupiedIds.includes(c.id));
+
+      if (courts.length === 0) {
+        return { allocated: [], message: 'All courts are occupied' };
+      }
+
       const allocated = [];
 
       // Separate by skill level

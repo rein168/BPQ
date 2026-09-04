@@ -7,17 +7,29 @@ router.post('/import', async (req, res) => {
   try {
     const { sessionId, players } = req.body;
     // players: [{ name: string, skill_level: 'Beginner' | 'Intermediate' }, ...]
-    
+
     if (!sessionId || !Array.isArray(players) || players.length === 0) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
-    // Validate skill levels
+    if (players.length > 200) {
+      return res.status(400).json({ error: 'Maximum 200 players per import' });
+    }
+
+    // Validate skill levels and input lengths
     const validSkills = ['Beginner', 'Intermediate'];
     for (const player of players) {
-      if (!player.name || !validSkills.includes(player.skill_level)) {
+      if (!player.name || typeof player.name !== 'string') {
         return res.status(400).json({ error: 'Invalid player data' });
       }
+      const trimmedName = player.name.trim();
+      if (trimmedName.length === 0 || trimmedName.length > 100) {
+        return res.status(400).json({ error: 'Player name must be 1-100 characters' });
+      }
+      if (!validSkills.includes(player.skill_level)) {
+        return res.status(400).json({ error: 'Invalid player data' });
+      }
+      player.name = trimmedName;
     }
 
     const count = await sessionService.importPlayerRoster(sessionId, players);

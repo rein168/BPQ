@@ -201,6 +201,13 @@
     const socket = io();
     let sessionState = null;
 
+    // XSS-safe text helper
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
     // Join session
     socket.emit('join-session', parseInt(sessionId));
 
@@ -301,7 +308,7 @@
 
       const { session, players, courts } = sessionState;
 
-      // Update session name
+      // Update session name (textContent is already XSS-safe)
       document.getElementById('sessionName').textContent = session.name;
 
       // Update courts display
@@ -327,7 +334,7 @@
                     .map((pid) => {
                       const player = players.find((p) => p.id == pid);
                       return player
-                        ? `<div class="match-player">${player.name} <span class="skill-badge skill-${player.skill_level.toLowerCase()}">${player.skill_level}</span></div>`
+                        ? `<div class="match-player">${esc(player.name)} <span class="skill-badge skill-${esc(player.skill_level.toLowerCase())}">${esc(player.skill_level)}</span></div>`
                         : '';
                     })
                     .join('')}
@@ -356,8 +363,8 @@
             (player) => `
           <div class="player-item">
             <div>
-              <strong>${player.name}</strong>
-              <span class="skill-badge skill-${player.skill_level.toLowerCase()} ms-2">${player.skill_level}</span>
+              <strong>${esc(player.name)}</strong>
+              <span class="skill-badge skill-${esc(player.skill_level.toLowerCase())} ms-2">${esc(player.skill_level)}</span>
             </div>
           </div>
         `

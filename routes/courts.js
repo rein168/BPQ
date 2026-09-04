@@ -16,9 +16,13 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Court name required' });
-    
-    const courtId = await sessionService.createCourt(name);
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Court name required' });
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 50) {
+      return res.status(400).json({ error: 'Court name must be 1-50 characters' });
+    }
+
+    const courtId = await sessionService.createCourt(trimmedName);
     res.json({ success: true, courtId });
   } catch (err) {
     res.status(500).json({ error: err.message });
