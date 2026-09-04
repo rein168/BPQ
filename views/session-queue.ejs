@@ -211,9 +211,6 @@
       <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="showQrModal()" title="Share QR Code">
         <i class="bi bi-qr-code"></i>
       </button>
-      <button class="btn-bbq btn-bbq-primary btn-bbq-sm host-only" onclick="allocateCourts()" id="allocateBtn">
-        <i class="bi bi-lightning-fill"></i> Allocate
-      </button>
       <button class="btn-bbq btn-bbq-danger btn-bbq-sm host-only" onclick="endSession()" title="End Game">
         <i class="bi bi-x-circle"></i> End
       </button>
@@ -578,7 +575,7 @@
     }
 
     async function finishMatch(courtId) {
-      if (!confirm('Mark this game as finished?')) return;
+      if (!confirm('End this game? Next players will be assigned automatically.')) return;
       try {
         const response = await fetch('/api/queue/' + courtId + '/finish', {
           method: 'POST',
@@ -832,8 +829,8 @@
                     }).join('') +
                   '</div>' +
                 '</div>' +
-                '<button class="btn-bbq btn-bbq-accent host-only" style="width:100%; margin-top:12px;" onclick="finishMatch(' + courtData.court.id + ')">' +
-                  '<i class="bi bi-check-circle"></i> Game Finished' +
+                '<button class="btn-bbq btn-bbq-accent" style="width:100%; margin-top:16px; padding:14px; font-size:var(--text-lg);" onclick="finishMatch(' + courtData.court.id + ')">' +
+                  '<i class="bi bi-flag-fill"></i> End Game' +
                 '</button>' +
               '</div>' +
             '</div>';

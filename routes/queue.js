@@ -16,8 +16,8 @@ router.post('/allocate', requireHost, (req, res) => {
   }
 });
 
-// End a match on a court (host only) — returns historyId for score entry
-router.post('/:courtId/finish', requireHost, (req, res) => {
+// End a match on a court (anyone can do this — players on the court or host)
+router.post('/:courtId/finish', (req, res) => {
   try {
     const { sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: 'Session ID required' });

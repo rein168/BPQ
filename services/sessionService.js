@@ -151,6 +151,8 @@ const sessionService = {
     });
 
     insertMany(players);
+    // Auto-allocate if courts are available
+    this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return players.length;
   },
@@ -168,6 +170,8 @@ const sessionService = {
     const players = s.getSessionPlayers.all(sessionId);
     const nextPos = players.length + 1;
     const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, now);
+    // Auto-allocate if courts are available
+    this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
   },
@@ -205,6 +209,10 @@ const sessionService = {
 
     const s = prepareStatements();
     s.updatePlayerStatus.run(newStatus, playerId);
+    // If player became allocatable, try auto-allocate
+    if (ALLOCATABLE_STATUSES.includes(newStatus)) {
+      this.tryAutoAllocate(sessionId);
+    }
     this.broadcastSessionState(sessionId);
   },
 
@@ -256,6 +264,16 @@ const sessionService = {
   getOccupiedCourtIds(sessionId) {
     const s = prepareStatements();
     return s.getOccupiedCourtIds.all(sessionId).map(r => r.court_id);
+  },
+
+  // Auto-allocate: silently tries to fill any free courts when enough players are waiting
+  tryAutoAllocate(sessionId) {
+    try {
+      this.autoAllocateCourts(sessionId);
+    } catch (err) {
+      // Silently ignore — auto-allocation is best-effort
+      console.error('Auto-allocate error:', err.message);
+    }
   },
 
   // Get eligible waiting players sorted by fairness: fewest games first, then earliest arrival
