@@ -3,6 +3,9 @@ const { v4: uuidv4 } = require('uuid');
 
 let io;
 
+// Configurable court capacity: 4 for doubles (default), 2 for singles
+const PLAYERS_PER_COURT = parseInt(process.env.PLAYERS_PER_COURT, 10) || 4;
+
 // Prepared statements (lazy-initialized after db is ready)
 let stmts = null;
 
@@ -159,7 +162,7 @@ const sessionService = {
     const players = this.getSessionPlayers(sessionId);
     const waitingPlayers = players.filter(p => p.status === 'waiting');
 
-    if (waitingPlayers.length < 4) {
+    if (waitingPlayers.length < PLAYERS_PER_COURT) {
       return { allocated: [], message: 'Not enough players for a game' };
     }
 
@@ -171,8 +174,34 @@ const sessionService = {
       return { allocated: [], message: 'All courts are occupied' };
     }
 
-    const allocated = [];
+    const allocated = this._assignPlayersToCourts(sessionId, waitingPlayers, courts);
 
+    this.broadcastSessionState(sessionId);
+    return { allocated, message: `Allocated ${allocated.length} court(s)` };
+  },
+
+  // Fill a single specific court with the next waiting players (used by auto-allocate on court-free)
+  autoFillCourt(sessionId, courtId) {
+    const players = this.getSessionPlayers(sessionId);
+    const waitingPlayers = players.filter(p => p.status === 'waiting');
+
+    if (waitingPlayers.length < PLAYERS_PER_COURT) {
+      return null;
+    }
+
+    const court = this.getAllCourts().find(c => c.id === Number(courtId));
+    if (!court) return null;
+
+    // Check court isn't already occupied
+    const occupiedIds = this.getOccupiedCourtIds(sessionId);
+    if (occupiedIds.includes(Number(courtId))) return null;
+
+    const allocated = this._assignPlayersToCourts(sessionId, waitingPlayers, [court]);
+    return allocated.length > 0 ? allocated[0] : null;
+  },
+
+  // Internal: assign waiting players to a list of available courts by skill grouping
+  _assignPlayersToCourts(sessionId, waitingPlayers, courts) {
     // Separate by skill level
     const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
     const intermediate = waitingPlayers.filter(p => p.skill_level === 'Intermediate');
@@ -180,45 +209,48 @@ const sessionService = {
     let courtIndex = 0;
     const gameAssignments = [];
 
-    // Rule 1: Try to group beginners together (4 players = 1 court)
-    while (beginners.length >= 4 && courtIndex < courts.length) {
+    // Rule 1: Try to group beginners together
+    while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
       gameAssignments.push({
         courtId: courts[courtIndex].id,
-        players: beginners.splice(0, 4),
-        type: 'beginner'
+        courtName: courts[courtIndex].name,
+        players: beginners.splice(0, PLAYERS_PER_COURT),
+        type: 'beginner',
       });
       courtIndex++;
     }
 
     // Rule 2: Try to group intermediate together
-    while (intermediate.length >= 4 && courtIndex < courts.length) {
+    while (intermediate.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
       gameAssignments.push({
         courtId: courts[courtIndex].id,
-        players: intermediate.splice(0, 4),
-        type: 'intermediate'
+        courtName: courts[courtIndex].name,
+        players: intermediate.splice(0, PLAYERS_PER_COURT),
+        type: 'intermediate',
       });
       courtIndex++;
     }
 
     // Rule 3: Mix remaining players if possible
     const remaining = [...beginners, ...intermediate];
-    while (remaining.length >= 4 && courtIndex < courts.length) {
+    while (remaining.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
       gameAssignments.push({
         courtId: courts[courtIndex].id,
-        players: remaining.splice(0, 4),
-        type: 'mixed'
+        courtName: courts[courtIndex].name,
+        players: remaining.splice(0, PLAYERS_PER_COURT),
+        type: 'mixed',
       });
       courtIndex++;
     }
 
     // Save to courts_in_use and update player status
+    const allocated = [];
     for (const assignment of gameAssignments) {
       this.startCourt(sessionId, assignment.courtId, assignment.players);
       allocated.push(assignment);
     }
 
-    this.broadcastSessionState(sessionId);
-    return { allocated, message: `Allocated ${allocated.length} court(s)` };
+    return allocated;
   },
 
   startCourt(sessionId, courtId, players) {
@@ -274,8 +306,23 @@ const sessionService = {
     });
 
     finishMatch();
+
+    // Auto-fill the freed court with next waiting players
+    const autoFilled = this.autoFillCourt(sessionId, courtId);
+
     this.broadcastSessionState(sessionId);
-    return { durationMs };
+
+    // Emit court-assignment notification so players know where to go
+    if (autoFilled && io) {
+      io.emit(`session:${sessionId}:court-assigned`, {
+        courtName: autoFilled.courtName,
+        courtId: autoFilled.courtId,
+        playerNames: autoFilled.players.map(p => p.name),
+        type: autoFilled.type,
+      });
+    }
+
+    return { durationMs, autoFilled };
   },
 
   getCourtStatus(sessionId, courtId) {
@@ -307,7 +354,8 @@ const sessionService = {
       io.emit(`session:${sessionId}`, {
         session,
         players,
-        courts: courtsStatus
+        courts: courtsStatus,
+        config: { playersPerCourt: PLAYERS_PER_COURT },
       });
     } catch (err) {
       console.error('Error broadcasting session state:', err);
@@ -325,7 +373,33 @@ const sessionService = {
       match.players = playerRows;
     }
     return matches;
-  }
+  },
+
+  // Session stats: match count, avg duration, per-player match counts
+  getSessionStats(sessionId) {
+    const summary = db
+      .prepare(
+        `SELECT COUNT(*) AS totalMatches,
+                COALESCE(AVG(duration_ms), 0) AS avgDurationMs,
+                COALESCE(MIN(duration_ms), 0) AS minDurationMs,
+                COALESCE(MAX(duration_ms), 0) AS maxDurationMs
+         FROM match_history WHERE session_id = ?`
+      )
+      .get(sessionId);
+
+    const playerStats = db
+      .prepare(
+        `SELECT p.id, p.name, p.skill_level, COUNT(mp.id) AS matchCount
+         FROM players p
+         LEFT JOIN match_players mp ON mp.player_id = p.id AND mp.match_history_id IS NOT NULL
+         WHERE p.session_id = ?
+         GROUP BY p.id
+         ORDER BY matchCount DESC`
+      )
+      .all(sessionId);
+
+    return { summary, playerStats };
+  },
 };
 
 module.exports = sessionService;

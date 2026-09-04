@@ -142,4 +142,14 @@ router.get('/:sessionId/history', (req, res) => {
   }
 });
 
+// Get session stats (host only)
+router.get('/:sessionId/stats', requireHost, (req, res) => {
+  try {
+    const stats = sessionService.getSessionStats(req.params.sessionId);
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
