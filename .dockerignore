@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+*.db
+*.db-shm
+*.db-wal
+.git
+.claude
+.eslintrc.json
+.prettierrc.json
+docs

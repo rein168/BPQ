@@ -27,12 +27,13 @@ const { registerSocketHandlers } = require('./sockets/handlers');
 
 const app = express();
 const server = http.createServer(app);
+// CORS: same-origin by default, configurable for cross-origin dev/testing
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-  : [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
+  : undefined; // undefined = same-origin only (works on Koyeb out of the box)
 
 const io = new Server(server, {
-  cors: { origin: corsOrigins },
+  cors: corsOrigins ? { origin: corsOrigins } : undefined,
   pingInterval: 30000,
   pingTimeout: 60000,
   transports: ['websocket', 'polling'],
