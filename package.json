@@ -1,7 +1,7 @@
 {
-  "name": "bpq",
+  "name": "bbq",
   "version": "1.0.0",
-  "description": "Badminton Players Queueing - Smart court queue system with skill-based grouping",
+  "description": "BBQ (Badminton Batch Queueing) - Smart court queue system with skill-based grouping",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

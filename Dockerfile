@@ -1,15 +1,26 @@
-FROM node:20-alpine
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Install dependencies first (layer caching)
+# Install build tools needed for better-sqlite3 native compilation
+RUN apk add --no-cache python3 make g++
+
+# Install dependencies (layer caching)
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
+
+# --- Production stage (no build tools) ---
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Copy node_modules with pre-built native addons
+COPY --from=build /app/node_modules ./node_modules
 
 # Copy app source
 COPY . .
 
-# Expose port (Koyeb sets PORT env var)
+# Expose port
 EXPOSE 8000
 
 # Health check
