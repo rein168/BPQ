@@ -182,9 +182,11 @@ a:hover { color: var(--color-primary-hover); }
   flex-shrink: 0;
 }
 
+.bbq-topnav__logo img,
 .bbq-topnav__logo svg {
   width: 34px;
   height: 34px;
+  border-radius: 7px;
 }
 
 .bbq-topnav__logo span {
@@ -221,8 +223,8 @@ a:hover { color: var(--color-primary-hover); }
   z-index: 100;
   height: var(--nav-bottom-height);
   background: var(--bg-nav);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -2px 8px rgba(26,36,32,0.06);
+  border-top: 2px solid var(--border);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
   display: flex;
   align-items: stretch;
   /* Safe area for notched phones */

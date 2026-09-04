@@ -31,6 +31,7 @@ db.exec(`
     name TEXT NOT NULL,
     pin_hash TEXT,
     court_count INTEGER DEFAULT 4,
+    game_date TEXT,
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'ended')),
     created_at INTEGER DEFAULT (strftime('%s','now')*1000),
     ended_at INTEGER
@@ -120,6 +121,8 @@ const migrations = [
   // Phase 7: Per-game courts
   'ALTER TABLE courts ADD COLUMN session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE',
   'ALTER TABLE sessions ADD COLUMN court_count INTEGER DEFAULT 4',
+  // Phase 8: Game date
+  'ALTER TABLE sessions ADD COLUMN game_date TEXT',
 ];
 
 for (const sql of migrations) {

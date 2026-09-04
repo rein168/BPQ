@@ -6,7 +6,7 @@ const { requireHost, hashPin, verifyPin, grantHostAccess } = require('../middlew
 // Create a new session (with optional PIN)
 router.post('/', (req, res) => {
   try {
-    const { name, pin, courtCount } = req.body;
+    const { name, pin, courtCount, gameDate } = req.body;
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Session name required' });
     const trimmedName = name.trim();
     if (trimmedName.length === 0 || trimmedName.length > 100) {
@@ -24,7 +24,8 @@ router.post('/', (req, res) => {
 
     // Validate court count
     const courts = courtCount ? Math.max(1, Math.min(parseInt(courtCount, 10) || 4, 20)) : 4;
-    const sessionId = sessionService.createSession(trimmedName, pinHash, courts);
+    const validDate = gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate) ? gameDate : null;
+    const sessionId = sessionService.createSession(trimmedName, pinHash, courts, validDate);
 
     // Grant host access to the creator
     grantHostAccess(res, req, sessionId);
@@ -85,6 +86,8 @@ router.get('/:sessionId/role', (req, res) => {
     // Sessions without a PIN treat everyone as host (backward compat)
     if (!session.pin_hash) {
       isHost = true;
+      // Also set the cookie so requireHost middleware passes on subsequent API calls
+      grantHostAccess(res, req, sessionId);
     }
 
     res.json({
@@ -144,8 +147,8 @@ router.get('/:sessionId/history', (req, res) => {
   }
 });
 
-// Get session stats (host only)
-router.get('/:sessionId/stats', requireHost, (req, res) => {
+// Get session stats (anyone can view)
+router.get('/:sessionId/stats', (req, res) => {
   try {
     const stats = sessionService.getSessionStats(req.params.sessionId);
     res.json(stats);

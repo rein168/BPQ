@@ -14,7 +14,7 @@ function prepareStatements() {
   if (stmts) return stmts;
   stmts = {
     // Sessions
-    createSession: db.prepare('INSERT INTO sessions (name, pin_hash, court_count, status) VALUES (?, ?, ?, ?)'),
+    createSession: db.prepare('INSERT INTO sessions (name, pin_hash, court_count, game_date, status) VALUES (?, ?, ?, ?, ?)'),
     getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     getAllSessions: db.prepare('SELECT * FROM sessions ORDER BY created_at DESC'),
     endSession: db.prepare('UPDATE sessions SET status = ?, ended_at = ? WHERE id = ?'),
@@ -108,10 +108,10 @@ const sessionService = {
   },
 
   // ===== SESSION MANAGEMENT =====
-  createSession(name, pinHash = null, courtCount = 4) {
+  createSession(name, pinHash = null, courtCount = 4, gameDate = null) {
     const s = prepareStatements();
     const count = Math.max(1, Math.min(courtCount, 20));
-    const result = s.createSession.run(name, pinHash, count, 'active');
+    const result = s.createSession.run(name, pinHash, count, gameDate, 'active');
     const sessionId = result.lastInsertRowid;
 
     // Auto-create courts for this game

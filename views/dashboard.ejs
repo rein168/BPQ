@@ -9,15 +9,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="BBQ" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link rel="apple-touch-icon" href="/icons/logo.webp" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     .dashboard-hero {
       text-align: center;
       padding: 48px 20px 32px;
     }
-    .dashboard-hero svg {
+    .dashboard-hero img {
       width: 72px;
       height: 72px;
       margin-bottom: 12px;
@@ -52,19 +53,67 @@
     }
     .session-status-active { background: var(--green-100); color: var(--green-900); }
     .session-status-ended  { background: var(--neutral-200); color: var(--neutral-600); }
+    .session-card__actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    /* QR Share Modal */
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-modal {
+      max-width: 340px;
+      width: 90%;
+      margin: auto;
+    }
+    .qr-modal__body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .qr-modal #qrcode-rsvp {
+      background: #fff;
+      padding: 12px;
+      border-radius: var(--radius-md);
+    }
+    .qr-modal__url {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      word-break: break-all;
+      text-align: center;
+    }
+    .form-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .form-row > * { flex: 1; }
+    .form-row .form-sm { flex: 0 0 auto; }
+    .form-input {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      background: var(--bg-page);
+      color: var(--text-primary);
+    }
   </style>
 </head>
 <body>
   <!-- Top Nav -->
   <nav class="bbq-topnav">
     <div class="bbq-topnav__logo">
-      <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="34" height="34" rx="7" fill="var(--color-primary)"/>
-        <line x1="9" y1="26" x2="26" y2="7" stroke="#D4A843" stroke-width="2" stroke-linecap="round"/>
-        <ellipse cx="15.5" cy="19" rx="4" ry="5" fill="#fff" opacity="0.95" transform="rotate(-40, 15.5, 19)"/>
-        <path d="M13,17.5 Q12.5,13 16,9 Q17,12.5 16.5,17 Z" fill="#fff" opacity="0.9"/>
-        <path d="M15,16 Q16,12 19,9 Q19,13 17.5,16.5 Z" fill="#fff" opacity="0.8"/>
-      </svg>
+      <img src="/icons/logo.webp" alt="BBQ" width="34" height="34" />
       <span>BBQ</span>
     </div>
     <div class="bbq-topnav__title"></div>
@@ -74,14 +123,7 @@
   <main style="max-width: 640px; margin: 0 auto; padding: 0 16px 40px;">
     <!-- Hero -->
     <div class="dashboard-hero">
-      <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="72" height="72" rx="16" fill="var(--color-primary)"/>
-        <line x1="18" y1="56" x2="56" y2="14" stroke="#D4A843" stroke-width="3.5" stroke-linecap="round"/>
-        <ellipse cx="32" cy="40" rx="9" ry="11" fill="#fff" opacity="0.95" transform="rotate(-40, 32, 40)"/>
-        <path d="M28,37 Q27,28 33,20 Q35,27 34,36 Z" fill="#fff" opacity="0.9"/>
-        <path d="M31,34 Q33,26 39,20 Q39,28 36,35 Z" fill="#fff" opacity="0.8"/>
-        <path d="M25,39 Q22,32 24,23 Q29,29 29,37 Z" fill="#fff" opacity="0.7"/>
-      </svg>
+      <img src="/icons/logo.webp" alt="BBQ" width="72" height="72" />
       <h1>BBQ</h1>
       <p>Badminton Batch Queueing</p>
     </div>
@@ -93,23 +135,28 @@
         <form id="createSessionForm">
           <input type="text" id="sessionNameInput"
             placeholder="Game name (e.g., Tuesday Night)"
-            required
-            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-md); margin-bottom:8px; background:var(--bg-page); color:var(--text-primary);" />
-          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            required class="form-input"
+            style="width:100%; margin-bottom:8px; font-size:var(--text-md);" />
+          <div class="form-row">
+            <input type="date" id="gameDateInput" class="form-input" />
             <input type="text" id="sessionPinInput"
               placeholder="Host PIN (4-6 digits)"
               pattern="\d{4,6}" maxlength="6" inputmode="numeric"
-              style="flex:1; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); background:var(--bg-page); color:var(--text-primary);" />
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-              <label for="courtCountInput" style="font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap;">Courts</label>
+              class="form-input" />
+          </div>
+          <div class="form-row" style="margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label for="courtCountInput" style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:500; white-space:nowrap;">Courts</label>
               <input type="number" id="courtCountInput" value="4" min="1" max="20" inputmode="numeric"
-                style="width:52px; padding:10px 6px; text-align:center; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:var(--text-sm); background:var(--bg-page); color:var(--text-primary);" />
+                class="form-input" style="width:56px; text-align:center; padding:10px 6px;" />
             </div>
           </div>
           <button type="submit" class="btn-bbq btn-bbq-primary" style="width:100%;">
             <i class="bi bi-plus-lg"></i> Create Game
           </button>
-          <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">PIN protects host actions. Leave blank for open games. Court count can be adjusted later.</p>
+          <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">
+            PIN protects host actions. Leave blank for open games. Court count can be adjusted later.
+          </p>
         </form>
       </div>
     </div>
@@ -126,9 +173,33 @@
     </div>
   </main>
 
+  <!-- RSVP QR Modal -->
+  <div id="qrOverlay" class="qr-overlay" onclick="if(event.target===this)hideQrModal()">
+    <div class="bbq-card qr-modal">
+      <div class="bbq-card__header">
+        <i class="bi bi-qr-code"></i> RSVP Link
+        <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="hideQrModal()" style="margin-left:auto; color:#fff; padding:4px 8px;">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="bbq-card__body qr-modal__body">
+        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin:0; text-align:center;">
+          Share this QR code so players can register before game day.
+        </p>
+        <div id="qrcode-rsvp"></div>
+        <div id="qrUrl" class="qr-modal__url"></div>
+        <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="copyQrLink()" style="width:100%;">
+          <i class="bi bi-clipboard"></i> Copy Link
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
     const socket = io();
+    let activeQrSessionId = null;
+    let qrInstance = null;
 
     // XSS-safe text helper
     function esc(str) {
@@ -137,6 +208,9 @@
       return d.innerHTML;
     }
 
+    // Set default date to today
+    document.getElementById('gameDateInput').valueAsDate = new Date();
+
     // Create session
     document.getElementById('createSessionForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -144,12 +218,13 @@
       if (!name) return;
       const pin = document.getElementById('sessionPinInput').value.trim() || undefined;
       const courtCount = parseInt(document.getElementById('courtCountInput').value, 10) || 4;
+      const gameDate = document.getElementById('gameDateInput').value || undefined;
 
       try {
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, pin, courtCount })
+          body: JSON.stringify({ name, pin, courtCount, gameDate })
         });
         const data = await response.json();
         if (data.success) {
@@ -171,6 +246,14 @@
       }
     }
 
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      } catch { return dateStr; }
+    }
+
     function displaySessions(sessions) {
       const container = document.getElementById('sessionsContainer');
       if (!sessions || sessions.length === 0) {
@@ -178,21 +261,69 @@
         return;
       }
 
-      container.innerHTML = sessions.map(session =>
-        '<a href="/session/' + session.id + '" class="session-card">' +
-          '<div>' +
+      container.innerHTML = sessions.map(session => {
+        const dateDisplay = session.game_date
+          ? '<i class="bi bi-calendar-event"></i> ' + esc(formatDate(session.game_date))
+          : '<i class="bi bi-calendar"></i> ' + new Date(session.created_at).toLocaleDateString();
+        return '<div class="session-card">' +
+          '<a href="/session/' + session.id + '" style="flex:1; text-decoration:none; color:inherit;">' +
             '<div style="font-weight:500;">' + esc(session.name) +
               (session.hasPin ? ' <i class="bi bi-lock-fill" style="color:var(--text-muted); font-size:0.8em;"></i>' : '') +
             '</div>' +
-            '<div style="font-size:var(--text-xs); color:var(--text-muted);">' +
-              '<i class="bi bi-calendar"></i> ' + new Date(session.created_at).toLocaleString() +
-            '</div>' +
+            '<div style="font-size:var(--text-xs); color:var(--text-muted);">' + dateDisplay + '</div>' +
+          '</a>' +
+          '<div class="session-card__actions">' +
+            (session.status === 'active'
+              ? '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="event.stopPropagation(); showQrModal(' + session.id + ')" title="RSVP QR"><i class="bi bi-qr-code"></i></button>'
+              : '') +
+            '<span class="session-status session-status-' + session.status + '">' +
+              session.status.charAt(0).toUpperCase() + session.status.slice(1) +
+            '</span>' +
           '</div>' +
-          '<span class="session-status session-status-' + session.status + '">' +
-            session.status.charAt(0).toUpperCase() + session.status.slice(1) +
-          '</span>' +
-        '</a>'
-      ).join('');
+        '</div>';
+      }).join('');
+    }
+
+    // QR Modal
+    function showQrModal(sessionId) {
+      activeQrSessionId = sessionId;
+      const overlay = document.getElementById('qrOverlay');
+      overlay.style.display = 'flex';
+      const url = window.location.origin + '/join/' + sessionId;
+      document.getElementById('qrUrl').textContent = url;
+
+      const container = document.getElementById('qrcode-rsvp');
+      container.innerHTML = '';
+      try {
+        qrInstance = new QRCode(container, {
+          text: url,
+          width: 220,
+          height: 220,
+          colorDark: '#1A2420',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (err) {
+        container.innerHTML = '<p style="color:var(--text-muted);">Could not generate QR code</p>';
+        console.error('QR generation error:', err);
+      }
+    }
+
+    function hideQrModal() {
+      document.getElementById('qrOverlay').style.display = 'none';
+      activeQrSessionId = null;
+      qrInstance = null;
+    }
+
+    function copyQrLink() {
+      if (!activeQrSessionId) return;
+      const url = window.location.origin + '/join/' + activeQrSessionId;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = event.target.closest('button');
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+        setTimeout(() => { btn.innerHTML = origHTML; }, 1500);
+      }).catch(() => {});
     }
 
     loadSessions();
