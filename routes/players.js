@@ -3,6 +3,57 @@ const router = express.Router();
 const sessionService = require('../services/sessionService');
 const { requireHost } = require('../middleware/auth');
 
+// Player self-registration (no auth — anyone with the link/QR)
+router.post('/register', (req, res) => {
+  try {
+    const { sessionId, name, skillLevel } = req.body;
+    if (!sessionId || !name || !skillLevel) {
+      return res.status(400).json({ error: 'Session ID, name, and skill level are required' });
+    }
+
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Name must be 1-100 characters' });
+    }
+
+    const validSkills = ['Beginner', 'Intermediate'];
+    if (!validSkills.includes(skillLevel)) {
+      return res.status(400).json({ error: 'Invalid skill level' });
+    }
+
+    // Check session exists and is active
+    const session = sessionService.getSession(sessionId);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.status === 'ended') return res.status(400).json({ error: 'Session has ended' });
+
+    // Check for duplicate name in session
+    const existing = sessionService.getSessionPlayers(sessionId);
+    const duplicate = existing.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+    if (duplicate) {
+      return res.status(409).json({ error: 'A player with that name is already in this session', playerId: duplicate.id });
+    }
+
+    const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel);
+    res.json({ success: true, playerId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Player check-in (arrival — updates arrived_at timestamp)
+router.post('/checkin', (req, res) => {
+  try {
+    const { sessionId, playerId } = req.body;
+    if (!sessionId || !playerId) {
+      return res.status(400).json({ error: 'Session ID and player ID required' });
+    }
+    sessionService.checkInPlayer(playerId, sessionId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Import player roster (host only)
 router.post('/import', requireHost, (req, res) => {
   try {

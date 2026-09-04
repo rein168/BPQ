@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBQ - Join Session</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1A8F55" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BBQ" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .join-page {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      min-height: calc(100vh - var(--nav-height));
+      display: flex;
+      flex-direction: column;
+    }
+    .join-hero {
+      text-align: center;
+      padding: 32px 0 24px;
+    }
+    .join-hero svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 12px;
+    }
+    .join-hero h1 {
+      font-size: var(--text-2xl);
+      color: var(--color-primary);
+      margin-bottom: 4px;
+    }
+    .join-hero .session-name {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .join-form-group {
+      margin-bottom: 16px;
+    }
+    .join-form-group label {
+      display: block;
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .join-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      transition: border-color 0.15s;
+    }
+    .join-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(43,196,122,0.15);
+    }
+    .join-select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      appearance: auto;
+    }
+    .join-btn {
+      width: 100%;
+      padding: 14px;
+      font-size: var(--text-lg);
+      margin-top: 8px;
+    }
+    .join-success {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .join-success .checkmark {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--green-100);
+      color: var(--green-700);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 16px;
+    }
+    .join-success h2 {
+      color: var(--color-primary);
+      margin-bottom: 8px;
+    }
+    .join-success p {
+      color: var(--text-secondary);
+      font-size: var(--text-md);
+    }
+    .join-error {
+      background: var(--coral-100);
+      color: var(--coral-600);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      margin-bottom: 12px;
+      display: none;
+    }
+    .join-info {
+      background: var(--green-50);
+      color: var(--green-900);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Nav -->
+  <nav class="bbq-topnav">
+    <a href="/" class="bbq-topnav__logo">
+      <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="34" height="34" rx="7" fill="var(--color-primary)"/>
+        <line x1="9" y1="26" x2="26" y2="7" stroke="#D4A843" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="15.5" cy="19" rx="4" ry="5" fill="#fff" opacity="0.95" transform="rotate(-40, 15.5, 19)"/>
+        <path d="M13,17.5 Q12.5,13 16,9 Q17,12.5 16.5,17 Z" fill="#fff" opacity="0.9"/>
+        <path d="M15,16 Q16,12 19,9 Q19,13 17.5,16.5 Z" fill="#fff" opacity="0.8"/>
+      </svg>
+      <span>BBQ</span>
+    </a>
+    <div class="bbq-topnav__title">Join Session</div>
+    <div class="bbq-topnav__actions"></div>
+  </nav>
+
+  <main class="join-page">
+    <!-- Loading state -->
+    <div id="loadingState">
+      <div class="empty-state">
+        <i class="bi bi-hourglass-split"></i>
+        <p>Loading session...</p>
+      </div>
+    </div>
+
+    <!-- Session not found -->
+    <div id="notFoundState" style="display:none;">
+      <div class="empty-state">
+        <i class="bi bi-exclamation-triangle"></i>
+        <p>Session not found or has ended.</p>
+        <a href="/" class="btn-bbq btn-bbq-primary" style="margin-top:12px;">Back to Home</a>
+      </div>
+    </div>
+
+    <!-- Registration form -->
+    <div id="registerState" style="display:none;">
+      <div class="join-hero">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="var(--color-primary)"/>
+          <line x1="16" y1="50" x2="50" y2="12" stroke="#D4A843" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="28" cy="36" rx="8" ry="10" fill="#fff" opacity="0.95" transform="rotate(-40, 28, 36)"/>
+          <path d="M24,33 Q23,25 29,18 Q31,24 30,32 Z" fill="#fff" opacity="0.9"/>
+          <path d="M27,30 Q29,23 35,18 Q35,25 32,31 Z" fill="#fff" opacity="0.8"/>
+        </svg>
+        <h1>Join Game</h1>
+        <div class="session-name" id="sessionNameDisplay"></div>
+      </div>
+
+      <div id="joinError" class="join-error"></div>
+
+      <form id="joinForm">
+        <div class="join-form-group">
+          <label for="playerName">Your Name</label>
+          <input type="text" id="playerName" class="join-input" placeholder="Enter your name" required maxlength="100" autocomplete="name" />
+        </div>
+        <div class="join-form-group">
+          <label for="skillLevel">Skill Level</label>
+          <select id="skillLevel" class="join-select" required>
+            <option value="">Select your level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-bbq btn-bbq-primary join-btn">
+          <i class="bi bi-person-plus-fill"></i> Join Session
+        </button>
+      </form>
+
+      <div class="join-info" style="margin-top:16px;">
+        <i class="bi bi-info-circle"></i>
+        You'll be added to the queue and allocated to a court when it's your turn.
+      </div>
+    </div>
+
+    <!-- Success state -->
+    <div id="successState" style="display:none;">
+      <div class="join-success">
+        <div class="checkmark"><i class="bi bi-check-lg"></i></div>
+        <h2>You're In!</h2>
+        <p id="successMessage">You've been added to the queue.</p>
+        <p style="font-size:var(--text-sm); color:var(--text-muted); margin-top:16px;">
+          Watch the courts screen for your turn, or check the live queue:
+        </p>
+        <a id="sessionLink" href="#" class="btn-bbq btn-bbq-outline" style="margin-top:12px;">
+          <i class="bi bi-eye"></i> View Session
+        </a>
+      </div>
+    </div>
+
+    <!-- Already registered -->
+    <div id="alreadyRegisteredState" style="display:none;">
+      <div class="join-success">
+        <div class="checkmark" style="background:var(--green-100);"><i class="bi bi-person-check"></i></div>
+        <h2 id="welcomeBackName">Welcome Back!</h2>
+        <p id="alreadyMessage">You're already registered for this session.</p>
+        <a id="sessionLinkExisting" href="#" class="btn-bbq btn-bbq-primary" style="margin-top:16px;">
+          <i class="bi bi-eye"></i> View Session
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const sessionId = window.location.pathname.split('/')[2]; // /join/:sessionId
+
+    // XSS-safe text helper
+    function esc(str) {
+      if (str == null) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function showState(stateId) {
+      ['loadingState', 'notFoundState', 'registerState', 'successState', 'alreadyRegisteredState']
+        .forEach(id => document.getElementById(id).style.display = 'none');
+      document.getElementById(stateId).style.display = '';
+    }
+
+    // Check if player already registered (via localStorage)
+    function getRegisteredPlayer() {
+      try {
+        const data = localStorage.getItem('bbq_player_' + sessionId);
+        return data ? JSON.parse(data) : null;
+      } catch { return null; }
+    }
+
+    function saveRegisteredPlayer(playerId, name) {
+      try {
+        localStorage.setItem('bbq_player_' + sessionId, JSON.stringify({ playerId, name }));
+      } catch { /* ignore */ }
+    }
+
+    // Load session info
+    async function init() {
+      try {
+        const response = await fetch('/api/sessions/' + sessionId);
+        if (!response.ok) { showState('notFoundState'); return; }
+        const data = await response.json();
+        const session = data.session;
+
+        if (session.status === 'ended') { showState('notFoundState'); return; }
+
+        document.getElementById('sessionNameDisplay').textContent = session.name;
+        document.getElementById('sessionLink').href = '/session/' + sessionId;
+        document.getElementById('sessionLinkExisting').href = '/session/' + sessionId;
+
+        // Check if already registered
+        const existing = getRegisteredPlayer();
+        if (existing) {
+          document.getElementById('welcomeBackName').textContent = 'Welcome back, ' + esc(existing.name) + '!';
+          document.getElementById('alreadyMessage').textContent = "You're already registered for this session.";
+          showState('alreadyRegisteredState');
+          // Also ping the check-in endpoint to update arrived_at
+          try {
+            await fetch('/api/players/checkin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: parseInt(sessionId), playerId: existing.playerId })
+            });
+          } catch { /* best effort */ }
+          return;
+        }
+
+        showState('registerState');
+      } catch {
+        showState('notFoundState');
+      }
+    }
+
+    // Submit registration
+    document.getElementById('joinForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('playerName').value.trim();
+      const skillLevel = document.getElementById('skillLevel').value;
+      const errorEl = document.getElementById('joinError');
+      errorEl.style.display = 'none';
+
+      if (!name || !skillLevel) {
+        errorEl.textContent = 'Please fill in all fields.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/players/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), name, skillLevel })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          errorEl.textContent = data.error || 'Registration failed.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Save to localStorage for re-visit detection
+        saveRegisteredPlayer(data.playerId, name);
+
+        document.getElementById('successMessage').textContent =
+          name + ', you\'ve been added to the queue!';
+        showState('successState');
+      } catch {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

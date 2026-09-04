@@ -150,6 +150,27 @@ const sessionService = {
     return s.getSessionPlayers.all(sessionId);
   },
 
+  // Self-registration: player joins via QR code / link
+  registerPlayer(sessionId, name, skillLevel) {
+    const s = prepareStatements();
+    const now = Date.now();
+    // Get next position
+    const players = s.getSessionPlayers.all(sessionId);
+    const nextPos = players.length + 1;
+    const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, now);
+    this.broadcastSessionState(sessionId);
+    return result.lastInsertRowid;
+  },
+
+  // Check-in: update arrived_at timestamp (re-scan QR at venue)
+  checkInPlayer(playerId, sessionId) {
+    const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
+    if (!player) throw new Error('Player not found in this session');
+    // Update arrived_at if not already set, or update to now (re-arrival)
+    db.prepare('UPDATE players SET arrived_at = ? WHERE id = ?').run(Date.now(), playerId);
+    this.broadcastSessionState(sessionId);
+  },
+
   // Get players with W/L records and games played (for queue display)
   getPlayersWithStats(sessionId) {
     const s = prepareStatements();

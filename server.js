@@ -53,7 +53,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://cdnjs.cloudflare.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
       connectSrc: ["'self'", "ws:", "wss:"],
@@ -100,6 +100,11 @@ app.get('/', (req, res) => {
 // Session queue page
 app.get('/session/:sessionId', (req, res) => {
   res.render('session-queue');
+});
+
+// Player join page (QR code destination)
+app.get('/join/:sessionId', (req, res) => {
+  res.render('join');
 });
 
 // Socket.io handlers
