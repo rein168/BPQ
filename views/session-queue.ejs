@@ -437,13 +437,13 @@
       <i class="bi bi-grid-3x3-gap-fill"></i>
       Courts
     </button>
-    <button class="bbq-bottomnav__tab" onclick="switchTab('players', this)">
-      <i class="bi bi-people-fill"></i>
-      Players
-    </button>
     <button class="bbq-bottomnav__tab" onclick="switchTab('queue', this)">
       <i class="bi bi-list-ol"></i>
       Queue
+    </button>
+    <button class="bbq-bottomnav__tab" onclick="switchTab('players', this)">
+      <i class="bi bi-people-fill"></i>
+      Players
     </button>
     <button class="bbq-bottomnav__tab" onclick="switchTab('stats', this)">
       <i class="bi bi-bar-chart-line-fill"></i>
@@ -1029,7 +1029,7 @@
     }
 
     function renderPlayersTab(players) {
-      const allPlayers = players.filter(p => p.status !== 'absent' || userRole === 'host');
+      const allPlayers = players; // Show all RSVP'd players
       const container = document.getElementById('playersContainer');
       const summaryEl = document.getElementById('playersSummary');
 
