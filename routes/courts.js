@@ -1,31 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const sessionService = require('../services/sessionService');
+const { requireHost } = require('../middleware/auth');
 
-// Get all active courts
-router.get('/', (req, res) => {
+// Get courts for a session
+router.get('/session/:sessionId', (req, res) => {
   try {
-    const courts = sessionService.getAllCourts();
+    const courts = sessionService.getSessionCourts(req.params.sessionId);
     res.json({ courts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Create a new court
-router.post('/', (req, res) => {
+// Add a court to a session (host only)
+router.post('/add', requireHost, (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Court name required' });
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0 || trimmedName.length > 50) {
-      return res.status(400).json({ error: 'Court name must be 1-50 characters' });
-    }
-
-    const courtId = sessionService.createCourt(trimmedName);
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
+    const courtId = sessionService.addCourt(sessionId);
     res.json({ success: true, courtId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Remove a court from a session (host only)
+router.post('/remove', requireHost, (req, res) => {
+  try {
+    const { sessionId, courtId } = req.body;
+    if (!sessionId || !courtId) return res.status(400).json({ error: 'Session ID and court ID required' });
+    sessionService.removeCourt(sessionId, courtId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

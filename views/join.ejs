@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BBQ - Join Session</title>
+  <title>BBQ - Join Game</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1A8F55" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -145,7 +145,7 @@
       </svg>
       <span>BBQ</span>
     </a>
-    <div class="bbq-topnav__title">Join Session</div>
+    <div class="bbq-topnav__title">Join Game</div>
     <div class="bbq-topnav__actions"></div>
   </nav>
 
@@ -162,7 +162,7 @@
     <div id="notFoundState" style="display:none;">
       <div class="empty-state">
         <i class="bi bi-exclamation-triangle"></i>
-        <p>Session not found or has ended.</p>
+        <p>Game not found or has ended.</p>
         <a href="/" class="btn-bbq btn-bbq-primary" style="margin-top:12px;">Back to Home</a>
       </div>
     </div>
@@ -177,7 +177,7 @@
           <path d="M24,33 Q23,25 29,18 Q31,24 30,32 Z" fill="#fff" opacity="0.9"/>
           <path d="M27,30 Q29,23 35,18 Q35,25 32,31 Z" fill="#fff" opacity="0.8"/>
         </svg>
-        <h1>Join Game</h1>
+        <h1>Join BBQ</h1>
         <div class="session-name" id="sessionNameDisplay"></div>
       </div>
 
@@ -197,7 +197,7 @@
           </select>
         </div>
         <button type="submit" class="btn-bbq btn-bbq-primary join-btn">
-          <i class="bi bi-person-plus-fill"></i> Join Session
+          <i class="bi bi-person-plus-fill"></i> Join Game
         </button>
       </form>
 
@@ -217,7 +217,7 @@
           Watch the courts screen for your turn, or check the live queue:
         </p>
         <a id="sessionLink" href="#" class="btn-bbq btn-bbq-outline" style="margin-top:12px;">
-          <i class="bi bi-eye"></i> View Session
+          <i class="bi bi-eye"></i> View Game
         </a>
       </div>
     </div>
@@ -227,9 +227,9 @@
       <div class="join-success">
         <div class="checkmark" style="background:var(--green-100);"><i class="bi bi-person-check"></i></div>
         <h2 id="welcomeBackName">Welcome Back!</h2>
-        <p id="alreadyMessage">You're already registered for this session.</p>
+        <p id="alreadyMessage">You're already registered for this game.</p>
         <a id="sessionLinkExisting" href="#" class="btn-bbq btn-bbq-primary" style="margin-top:16px;">
-          <i class="bi bi-eye"></i> View Session
+          <i class="bi bi-eye"></i> View Game
         </a>
       </div>
     </div>
@@ -284,7 +284,7 @@
         const existing = getRegisteredPlayer();
         if (existing) {
           document.getElementById('welcomeBackName').textContent = 'Welcome back, ' + esc(existing.name) + '!';
-          document.getElementById('alreadyMessage').textContent = "You're already registered for this session.";
+          document.getElementById('alreadyMessage').textContent = "You're already registered for this game.";
           showState('alreadyRegisteredState');
           // Also ping the check-in endpoint to update arrived_at
           try {

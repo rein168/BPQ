@@ -13,13 +13,16 @@ db.pragma('foreign_keys = ON');
 db.exec(`
   CREATE TABLE IF NOT EXISTS courts (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     uuid TEXT UNIQUE,
+    session_id INTEGER,
     status TEXT DEFAULT 'active',
-    created_at INTEGER DEFAULT (strftime('%s','now')*1000)
+    created_at INTEGER DEFAULT (strftime('%s','now')*1000),
+    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
   )
 `);
 db.exec('CREATE INDEX IF NOT EXISTS idx_courts_status ON courts(status);');
+// idx_courts_session created after migrations (column may not exist on old DBs)
 
 // ========== TABLE: sessions ==========
 db.exec(`
@@ -27,6 +30,7 @@ db.exec(`
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     pin_hash TEXT,
+    court_count INTEGER DEFAULT 4,
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'ended')),
     created_at INTEGER DEFAULT (strftime('%s','now')*1000),
     ended_at INTEGER
@@ -113,6 +117,9 @@ const migrations = [
   // Phase 6: Score columns on match_history
   'ALTER TABLE match_history ADD COLUMN score_a INTEGER',
   'ALTER TABLE match_history ADD COLUMN score_b INTEGER',
+  // Phase 7: Per-game courts
+  'ALTER TABLE courts ADD COLUMN session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE',
+  'ALTER TABLE sessions ADD COLUMN court_count INTEGER DEFAULT 4',
 ];
 
 for (const sql of migrations) {
@@ -122,6 +129,9 @@ for (const sql of migrations) {
     // Column/constraint already exists — ignore
   }
 }
+
+// Post-migration indexes (columns added by migrations above)
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_courts_session ON courts(session_id);'); } catch { /* column may not exist */ }
 
 // Migrate player status CHECK constraint for existing DBs
 // SQLite doesn't support ALTER CHECK, but new rows will fail if not in the list.

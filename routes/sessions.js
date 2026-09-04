@@ -6,7 +6,7 @@ const { requireHost, hashPin, verifyPin, grantHostAccess } = require('../middlew
 // Create a new session (with optional PIN)
 router.post('/', (req, res) => {
   try {
-    const { name, pin } = req.body;
+    const { name, pin, courtCount } = req.body;
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Session name required' });
     const trimmedName = name.trim();
     if (trimmedName.length === 0 || trimmedName.length > 100) {
@@ -22,7 +22,9 @@ router.post('/', (req, res) => {
       pinHash = hashPin(pin);
     }
 
-    const sessionId = sessionService.createSession(trimmedName, pinHash);
+    // Validate court count
+    const courts = courtCount ? Math.max(1, Math.min(parseInt(courtCount, 10) || 4, 20)) : 4;
+    const sessionId = sessionService.createSession(trimmedName, pinHash, courts);
 
     // Grant host access to the creator
     grantHostAccess(res, req, sessionId);

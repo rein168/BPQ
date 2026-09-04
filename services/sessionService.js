@@ -14,7 +14,7 @@ function prepareStatements() {
   if (stmts) return stmts;
   stmts = {
     // Sessions
-    createSession: db.prepare('INSERT INTO sessions (name, pin_hash, status) VALUES (?, ?, ?)'),
+    createSession: db.prepare('INSERT INTO sessions (name, pin_hash, court_count, status) VALUES (?, ?, ?, ?)'),
     getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     getAllSessions: db.prepare('SELECT * FROM sessions ORDER BY created_at DESC'),
     endSession: db.prepare('UPDATE sessions SET status = ?, ended_at = ? WHERE id = ?'),
@@ -27,9 +27,11 @@ function prepareStatements() {
     updatePlayerSkill: db.prepare('UPDATE players SET skill_level = ? WHERE id = ?'),
     updatePlayerStatus: db.prepare('UPDATE players SET status = ? WHERE id = ?'),
 
-    // Courts
-    getAllCourts: db.prepare("SELECT * FROM courts WHERE status = ? ORDER BY id ASC"),
-    createCourt: db.prepare('INSERT INTO courts (name, uuid) VALUES (?, ?)'),
+    // Courts (per-session)
+    getSessionCourts: db.prepare("SELECT * FROM courts WHERE session_id = ? AND status = ? ORDER BY id ASC"),
+    createCourt: db.prepare('INSERT INTO courts (name, uuid, session_id) VALUES (?, ?, ?)'),
+    deleteCourt: db.prepare('DELETE FROM courts WHERE id = ? AND session_id = ?'),
+    updateSessionCourtCount: db.prepare('UPDATE sessions SET court_count = ? WHERE id = ?'),
 
     // Courts in use
     insertCourtInUse: db.prepare(
@@ -106,10 +108,18 @@ const sessionService = {
   },
 
   // ===== SESSION MANAGEMENT =====
-  createSession(name, pinHash = null) {
+  createSession(name, pinHash = null, courtCount = 4) {
     const s = prepareStatements();
-    const result = s.createSession.run(name, pinHash, 'active');
-    return result.lastInsertRowid;
+    const count = Math.max(1, Math.min(courtCount, 20));
+    const result = s.createSession.run(name, pinHash, count, 'active');
+    const sessionId = result.lastInsertRowid;
+
+    // Auto-create courts for this game
+    for (let i = 1; i <= count; i++) {
+      s.createCourt.run('Court ' + i, uuidv4(), sessionId);
+    }
+
+    return sessionId;
   },
 
   getSession(sessionId) {
@@ -209,16 +219,38 @@ const sessionService = {
   },
 
   // ===== COURT ALLOCATION & QUEUEING =====
-  getAllCourts() {
+  getSessionCourts(sessionId) {
     const s = prepareStatements();
-    return s.getAllCourts.all('active');
+    return s.getSessionCourts.all(sessionId, 'active');
   },
 
-  createCourt(name) {
+  // Add a court to a session (host adjusts court count up)
+  addCourt(sessionId) {
     const s = prepareStatements();
-    const uuid = uuidv4();
-    const result = s.createCourt.run(name, uuid);
+    const existing = s.getSessionCourts.all(sessionId, 'active');
+    if (existing.length >= 20) throw new Error('Maximum 20 courts');
+    const nextNum = existing.length + 1;
+    const result = s.createCourt.run('Court ' + nextNum, uuidv4(), sessionId);
+    s.updateSessionCourtCount.run(existing.length + 1, sessionId);
+    this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
+  },
+
+  // Remove a court from a session (only if not occupied)
+  removeCourt(sessionId, courtId) {
+    const s = prepareStatements();
+    const existing = s.getSessionCourts.all(sessionId, 'active');
+    if (existing.length <= 1) throw new Error('Must have at least 1 court');
+
+    // Check court is not in use
+    const occupiedIds = this.getOccupiedCourtIds(sessionId);
+    if (occupiedIds.includes(Number(courtId))) {
+      throw new Error('Cannot remove a court with an active match');
+    }
+
+    s.deleteCourt.run(courtId, sessionId);
+    s.updateSessionCourtCount.run(existing.length - 1, sessionId);
+    this.broadcastSessionState(sessionId);
   },
 
   getOccupiedCourtIds(sessionId) {
@@ -262,7 +294,7 @@ const sessionService = {
       return { allocated: [], message: 'Not enough players for a game' };
     }
 
-    const allCourts = this.getAllCourts();
+    const allCourts = this.getSessionCourts(sessionId);
     const occupiedIds = this.getOccupiedCourtIds(sessionId);
     const courts = allCourts.filter(c => !occupiedIds.includes(c.id));
 
@@ -284,7 +316,7 @@ const sessionService = {
       return null;
     }
 
-    const court = this.getAllCourts().find(c => c.id === Number(courtId));
+    const court = this.getSessionCourts(sessionId).find(c => c.id === Number(courtId));
     if (!court) return null;
 
     const occupiedIds = this.getOccupiedCourtIds(sessionId);
@@ -458,7 +490,7 @@ const sessionService = {
     try {
       const session = this.getSession(sessionId);
       const playersWithStats = this.getPlayersWithStats(sessionId);
-      const courts = this.getAllCourts();
+      const courts = this.getSessionCourts(sessionId);
 
       const courtsStatus = [];
       for (const court of courts) {

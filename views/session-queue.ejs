@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BBQ - Session</title>
+  <title>BBQ - Game</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1A8F55" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -214,8 +214,8 @@
       <button class="btn-bbq btn-bbq-primary btn-bbq-sm host-only" onclick="allocateCourts()" id="allocateBtn">
         <i class="bi bi-lightning-fill"></i> Allocate
       </button>
-      <button class="btn-bbq btn-bbq-danger btn-bbq-sm host-only" onclick="endSession()">
-        <i class="bi bi-stop-circle"></i>
+      <button class="btn-bbq btn-bbq-danger btn-bbq-sm host-only" onclick="endSession()" title="End Game">
+        <i class="bi bi-x-circle"></i> End
       </button>
       <button class="btn-bbq btn-bbq-outline btn-bbq-sm viewer-only" onclick="showPinModal()" id="unlockBtn" style="display:none;">
         <i class="bi bi-unlock"></i>
@@ -228,7 +228,7 @@
     <div class="bbq-card" style="max-width:320px; width:90%; margin:auto;">
       <div class="bbq-card__header"><i class="bi bi-lock-fill"></i> Host PIN Required</div>
       <div class="bbq-card__body">
-        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin-bottom:12px;">Enter the host PIN to manage this session, or view as a player.</p>
+        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin-bottom:12px;">Enter the host PIN to manage this game, or view as a player.</p>
         <input type="text" id="pinInput" class="score-input" style="width:100%; font-size:var(--text-xl);"
           placeholder="Enter PIN" pattern="\d{4,6}" maxlength="6" inputmode="numeric" autocomplete="off" />
         <div id="pinError" style="display:none; color:var(--color-danger); font-size:var(--text-sm); margin-top:8px;"></div>
@@ -244,7 +244,7 @@
   <div id="qrOverlay" class="qr-overlay" onclick="if(event.target===this)hideQrModal()">
     <div class="bbq-card qr-modal">
       <div class="bbq-card__header">
-        <i class="bi bi-qr-code"></i> Share Session
+        <i class="bi bi-qr-code"></i> Share Game
         <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="hideQrModal()" style="margin-left:auto; color:#fff; padding:4px 8px;">
           <i class="bi bi-x-lg"></i>
         </button>
@@ -264,10 +264,21 @@
 
     <!-- COURTS TAB -->
     <div id="tab-courts" class="tab-pane active">
+      <!-- Court count adjuster (host only) -->
+      <div class="court-count-bar host-only" id="courtCountBar" style="display:flex; align-items:center; gap:8px; padding:8px 0; margin-bottom:8px;">
+        <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600;">Courts:</span>
+        <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="removeCourt()" id="removeCourtBtn" style="width:32px; height:32px; padding:0;">
+          <i class="bi bi-dash"></i>
+        </button>
+        <span id="courtCountDisplay" style="font-family:var(--font-heading); font-weight:700; font-size:var(--text-lg); min-width:24px; text-align:center; font-variant-numeric:tabular-nums;">—</span>
+        <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="addCourt()" id="addCourtBtn" style="width:32px; height:32px; padding:0;">
+          <i class="bi bi-plus"></i>
+        </button>
+      </div>
       <div id="courtsContainer">
         <div class="empty-state">
           <i class="bi bi-grid-3x3-gap"></i>
-          <p>No courts allocated yet</p>
+          <p>No courts available</p>
         </div>
       </div>
     </div>
@@ -586,13 +597,13 @@
 
     function promptScore(historyId, courtId) {
       // Switch to score tab so host can enter score for the just-finished match
-      const scoreBtn = document.querySelector('.bbq-bottomnav__tab:nth-child(3)');
+      const scoreBtn = document.querySelector('.bbq-bottomnav__tab:nth-child(4)');
       switchTab('score', scoreBtn);
       loadMatchHistory();
     }
 
     async function endSession() {
-      if (!confirm('End this session? This action cannot be undone.')) return;
+      if (!confirm('End this game? This action cannot be undone.')) return;
       try {
         const response = await fetch('/api/sessions/' + sessionId + '/end', {
           method: 'POST',
@@ -600,6 +611,40 @@
         });
         const data = await response.json();
         if (data.success) window.location.href = '/';
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // ===== Court count adjustment =====
+    async function addCourt() {
+      try {
+        const response = await fetch('/api/courts/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (!data.success) alert(data.error || 'Failed to add court');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function removeCourt() {
+      if (!sessionState || !sessionState.courts) return;
+      // Remove the last unoccupied court
+      const courts = sessionState.courts;
+      const lastEmpty = [...courts].reverse().find(c => !c.match);
+      if (!lastEmpty) { alert('All courts are in use'); return; }
+      try {
+        const response = await fetch('/api/courts/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), courtId: lastEmpty.court.id })
+        });
+        const data = await response.json();
+        if (!data.success) alert(data.error || 'Failed to remove court');
       } catch (err) {
         alert('Error: ' + err.message);
       }
@@ -743,6 +788,10 @@
       const { session, players, courts } = sessionState;
 
       document.getElementById('sessionName').textContent = session.name;
+
+      // Update court count display
+      const courtCountEl = document.getElementById('courtCountDisplay');
+      if (courtCountEl && courts) courtCountEl.textContent = courts.length;
 
       // === Courts tab ===
       const courtsContainer = document.getElementById('courtsContainer');
