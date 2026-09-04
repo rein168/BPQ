@@ -269,7 +269,7 @@ const sessionService = {
     const s = prepareStatements();
     const players = s.getSessionPlayers.all(sessionId);
     const activePlayers = players.filter(p =>
-      ['waiting', 'rested', 'playing'].includes(p.status)
+      ['waiting', 'rested', 'playing'].includes(p.status) && p.arrived_at
     );
     const neededCourts = Math.max(1, Math.floor(activePlayers.length / PLAYERS_PER_COURT));
     const currentCourts = s.getSessionCourts.all(sessionId, 'active');
@@ -293,9 +293,10 @@ const sessionService = {
   },
 
   // Get eligible waiting players sorted by fairness: fewest games first, then earliest arrival
+  // Only players who have arrived (scanned QR / checked in) are eligible
   _getEligiblePlayers(sessionId) {
     const players = this.getSessionPlayers(sessionId);
-    const eligible = players.filter((p) => ALLOCATABLE_STATUSES.includes(p.status));
+    const eligible = players.filter((p) => ALLOCATABLE_STATUSES.includes(p.status) && p.arrived_at);
 
     if (eligible.length === 0) return [];
 

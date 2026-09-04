@@ -1094,7 +1094,7 @@
 
     function renderQueueTab(players, courts) {
       const queuePlayers = players
-        .filter(p => p.status === 'waiting' || p.status === 'rested')
+        .filter(p => (p.status === 'waiting' || p.status === 'rested') && p.arrived_at)
         .sort((a, b) => {
           const gA = a.games_played || 0, gB = b.games_played || 0;
           if (gA !== gB) return gA - gB;
