@@ -17,13 +17,23 @@ if (isProduction && (!cookieSecret || cookieSecret === 'your_secure_cookie_secre
   process.exit(1);
 }
 
-require('./db'); // Initialize database on startup
+// R2 backup: must init before db.js so a restored file is in place
+const r2Backup = require('./services/r2Backup');
+
+async function boot() {
+// Restore DB from R2 if this is a fresh container
+await r2Backup.init();
+
+const db = require('./db'); // Initialize database on startup
 const sessionService = require('./services/sessionService');
 const sessionRoutes = require('./routes/sessions');
 const courtRoutes = require('./routes/courts');
 const playerRoutes = require('./routes/players');
 const queueRoutes = require('./routes/queue');
 const { registerSocketHandlers } = require('./sockets/handlers');
+
+// Start periodic R2 sync (uses db for WAL checkpoint)
+r2Backup.startSync(db);
 
 const app = express();
 const server = http.createServer(app);
@@ -140,4 +150,11 @@ process.on('unhandledRejection', (reason, promise) => {
 server.listen(port, () => {
   console.log(`\n🏸 BBQ (Badminton Batch Queueing) running on port ${port}`);
   console.log(`📱 Open http://localhost:${port}\n`);
+});
+
+} // end boot()
+
+boot().catch(err => {
+  console.error('FATAL: Boot failed:', err);
+  process.exit(1);
 });

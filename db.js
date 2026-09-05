@@ -148,4 +148,40 @@ try { db.exec('CREATE INDEX IF NOT EXISTS idx_courts_session ON courts(session_i
 // we accept that SQLite doesn't enforce CHECK on existing rows and the app
 // validates status values at the service layer.
 
+// R2 backup: mark DB dirty after any write.
+// The r2Backup module is loaded lazily to avoid circular deps.
+let _markDirty = null;
+function notifyWrite() {
+  if (!_markDirty) {
+    try { _markDirty = require('./services/r2Backup').markDirty; } catch { _markDirty = () => {}; }
+  }
+  _markDirty();
+}
+
+// Wrap db.exec to detect write statements
+const origExec = db.exec.bind(db);
+db.exec = function(sql) {
+  const result = origExec(sql);
+  // Only mark dirty for DML/DDL, not reads or pragmas
+  if (/^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE)\b/i.test(sql)) {
+    notifyWrite();
+  }
+  return result;
+};
+
+// Wrap db.prepare to intercept .run() on write statements
+const origPrepare = db.prepare.bind(db);
+db.prepare = function(sql) {
+  const stmt = origPrepare(sql);
+  if (/^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql)) {
+    const origRun = stmt.run.bind(stmt);
+    stmt.run = function(...args) {
+      const result = origRun(...args);
+      notifyWrite();
+      return result;
+    };
+  }
+  return stmt;
+};
+
 module.exports = db;
