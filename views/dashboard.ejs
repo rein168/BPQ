@@ -269,10 +269,37 @@
         return;
       }
 
-      container.innerHTML = sessions.map(session => {
+      // Filter out ended sessions
+      const activeSessions = sessions.filter(s => s.status !== 'ended');
+
+      if (activeSessions.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>No active games. Create one to get started!</p></div>';
+        return;
+      }
+
+      // Determine if a session is "coming soon" (future game_date) vs ongoing (today or no date)
+      function isComingSoon(session) {
+        if (!session.game_date) return false;
+        const today = new Date().toISOString().slice(0, 10);
+        return session.game_date > today;
+      }
+
+      container.innerHTML = activeSessions.map(session => {
         const dateDisplay = session.game_date
           ? '<i class="bi bi-calendar-event"></i> ' + esc(formatDate(session.game_date))
           : '<i class="bi bi-calendar"></i> ' + new Date(session.created_at).toLocaleDateString();
+        const comingSoon = isComingSoon(session);
+
+        // Actions: coming soon = Register pill (opens registration QR), ongoing = QR icon + Active pill
+        let actionsHtml;
+        if (comingSoon) {
+          actionsHtml = '<button class="btn-bbq btn-bbq-sm" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'register\')" style="background:var(--color-primary); color:#fff; border:none; border-radius:var(--radius-pill); padding:4px 14px; font-size:var(--text-xs); font-weight:600; cursor:pointer;">' +
+            '<i class="bi bi-qr-code"></i> Register</button>';
+        } else {
+          actionsHtml = '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'arrive\')" title="Arrival QR" style="padding:4px 6px; font-size:20px; line-height:1;"><i class="bi bi-qr-code"></i></button>' +
+            '<span class="session-status session-status-active">Active</span>';
+        }
+
         return '<div class="session-card">' +
           '<a href="/session/' + session.id + '" style="flex:1; text-decoration:none; color:inherit;">' +
             '<div style="font-weight:500;">' + esc(session.name) +
@@ -283,15 +310,7 @@
               '<span><i class="bi bi-people-fill"></i> ' + (session.playerCount || 0) + '/' + (session.maxPlayers || 0) + '</span>' +
             '</div>' +
           '</a>' +
-          '<div class="session-card__actions">' +
-            (session.status === 'active'
-              ? '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'register\')" title="Registration QR" style="padding:4px 6px; font-size:20px; line-height:1;"><i class="bi bi-person-plus"></i></button>' +
-                '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'arrive\')" title="Arrival QR" style="padding:4px 6px; font-size:20px; line-height:1;"><i class="bi bi-geo-alt-fill"></i></button>'
-              : '') +
-            '<span class="session-status session-status-' + session.status + '">' +
-              session.status.charAt(0).toUpperCase() + session.status.slice(1) +
-            '</span>' +
-          '</div>' +
+          '<div class="session-card__actions">' + actionsHtml + '</div>' +
         '</div>';
       }).join('');
     }
