@@ -1115,6 +1115,10 @@
         return;
       }
 
+      // Build position map so each player knows their queue position
+      const positionMap = {};
+      queuePlayers.forEach((p, i) => { positionMap[p.id] = i + 1; });
+
       // Separate courts into available (empty) and busy (in-play)
       const allCourts = courts || [];
       const availableCourts = allCourts.filter(c => !c.match);
@@ -1126,26 +1130,34 @@
         batches.push(queuePlayers.slice(i, i + playersPerCourt));
       }
 
-      let html = '';
+      // Queue summary header
+      const totalQueued = queuePlayers.length;
+      const playingCount = players.filter(p => p.status === 'playing').length;
+      let html = '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-sm);">' +
+        '<div><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + totalQueued + '</strong> in queue</div>' +
+        '<div><i class="bi bi-controller" style="color:var(--color-warning);"></i> <strong>' + playingCount + '</strong> playing</div>' +
+        '<div><i class="bi bi-cup-hot" style="color:var(--text-muted);"></i> <strong>' + onBreak.length + '</strong> on break</div>' +
+      '</div>';
+
       let batchIndex = 0;
 
       // Assign batches to available courts first ("Get Ready")
       for (const courtData of availableCourts) {
         if (batchIndex >= batches.length) break;
-        html += renderBatchCard(batches[batchIndex], courtData.court.name, batchIndex + 1, playersPerCourt, 'ready');
+        html += renderBatchCard(batches[batchIndex], courtData.court.name, batchIndex + 1, playersPerCourt, 'ready', positionMap);
         batchIndex++;
       }
 
       // Then assign remaining batches to busy courts ("Up Next — when court finishes")
       for (const courtData of busyCourts) {
         if (batchIndex >= batches.length) break;
-        html += renderBatchCard(batches[batchIndex], courtData.court.name, batchIndex + 1, playersPerCourt, 'next');
+        html += renderBatchCard(batches[batchIndex], courtData.court.name, batchIndex + 1, playersPerCourt, 'next', positionMap);
         batchIndex++;
       }
 
       // Any leftover batches without a court
       while (batchIndex < batches.length) {
-        html += renderBatchCard(batches[batchIndex], null, batchIndex + 1, playersPerCourt, 'queued');
+        html += renderBatchCard(batches[batchIndex], null, batchIndex + 1, playersPerCourt, 'queued', positionMap);
         batchIndex++;
       }
 
@@ -1201,7 +1213,17 @@
       queueContainer.innerHTML = html;
     }
 
-    function renderBatchCard(batch, courtName, batchNum, playersPerCourt, status) {
+    function renderPlayerRow(p, posMap) {
+      const pos = posMap[p.id] || '?';
+      const games = p.games_played || 0;
+      return '<div class="match-player-row" style="display:flex; align-items:center; gap:6px;">' +
+        '<span style="font-size:var(--text-xs); color:var(--text-muted); font-weight:700; min-width:20px; font-variant-numeric:tabular-nums;">#' + pos + '</span>' +
+        '<span style="flex:1;">' + esc(p.name) + '</span>' +
+        '<span style="font-size:var(--text-xs); color:var(--text-muted); font-variant-numeric:tabular-nums;" title="Games played">' + games + 'G</span>' +
+      '</div>';
+    }
+
+    function renderBatchCard(batch, courtName, batchNum, playersPerCourt, status, posMap) {
       const isFull = batch.length === playersPerCourt;
       const teamsPerSide = playersPerCourt / 2;
       const teamA = batch.slice(0, teamsPerSide);
@@ -1248,16 +1270,16 @@
       if (isFull) {
         html += '<div class="batch-card__team">' +
             '<div class="batch-card__team-label" style="color:var(--green-700);">Team A</div>' +
-            teamA.map(p => '<div class="match-player-row">' + esc(p.name) + '</div>').join('') +
+            teamA.map(p => renderPlayerRow(p, posMap)).join('') +
           '</div>' +
           '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted); padding:0 4px;">vs</div>' +
           '<div class="batch-card__team">' +
             '<div class="batch-card__team-label" style="color:var(--coral-500);">Team B</div>' +
-            teamB.map(p => '<div class="match-player-row">' + esc(p.name) + '</div>').join('') +
+            teamB.map(p => renderPlayerRow(p, posMap)).join('') +
           '</div>';
       } else {
         html += '<div style="width:100%;">' +
-          batch.map(p => '<div class="match-player-row">' + esc(p.name) + '</div>').join('') +
+          batch.map(p => renderPlayerRow(p, posMap)).join('') +
         '</div>';
       }
       html += '</div></div>';

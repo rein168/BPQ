@@ -358,23 +358,25 @@ const sessionService = {
 
   // Internal: assign waiting players to available courts by skill grouping
   // Players are pre-sorted by fairness (fewest games, earliest arrival)
+  // Grouping priority: Advanced together, Intermediate together, Beginner together, then mix
   _assignPlayersToCourts(sessionId, waitingPlayers, courts) {
-    const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
+    const advanced = waitingPlayers.filter(p => p.skill_level === 'Advanced');
     const intermediate = waitingPlayers.filter(p => p.skill_level === 'Intermediate');
+    const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
 
     let courtIndex = 0;
     const gameAssignments = [];
 
-    // Rule 1: Group beginners together
-    while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-      const picked = beginners.splice(0, PLAYERS_PER_COURT);
+    // Rule 1: Group advanced together (competitive games)
+    while (advanced.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+      const picked = advanced.splice(0, PLAYERS_PER_COURT);
       gameAssignments.push({
         courtId: courts[courtIndex].id,
         courtName: courts[courtIndex].name,
         players: picked,
         teamA: picked.slice(0, TEAMS),
         teamB: picked.slice(TEAMS),
-        type: 'beginner',
+        type: 'advanced',
       });
       courtIndex++;
     }
@@ -393,8 +395,22 @@ const sessionService = {
       courtIndex++;
     }
 
-    // Rule 3: Mix remaining
-    const remaining = [...beginners, ...intermediate];
+    // Rule 3: Group beginners together (protected)
+    while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+      const picked = beginners.splice(0, PLAYERS_PER_COURT);
+      gameAssignments.push({
+        courtId: courts[courtIndex].id,
+        courtName: courts[courtIndex].name,
+        players: picked,
+        teamA: picked.slice(0, TEAMS),
+        teamB: picked.slice(TEAMS),
+        type: 'beginner',
+      });
+      courtIndex++;
+    }
+
+    // Rule 4: Mix remaining (Advanced+Intermediate mix well; Beginners fill last)
+    const remaining = [...advanced, ...intermediate, ...beginners];
     while (remaining.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
       const picked = remaining.splice(0, PLAYERS_PER_COURT);
       gameAssignments.push({
