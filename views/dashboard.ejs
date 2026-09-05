@@ -135,10 +135,10 @@
         <form id="createSessionForm">
           <div class="form-row">
             <input type="date" id="gameDateInput" class="form-input" />
-            <div class="form-sm" style="position:relative;">
-              <label for="courtCountInput" style="position:absolute; top:-8px; left:8px; font-size:10px; color:var(--text-muted); background:var(--bg-card); padding:0 4px;">Courts</label>
+            <div class="form-sm" style="position:relative; flex:0 0 72px;">
+              <label for="courtCountInput" style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--text-muted); background:var(--bg-card); padding:0 4px; white-space:nowrap;">Courts</label>
               <input type="number" id="courtCountInput" value="4" min="1" max="20" inputmode="numeric"
-                class="form-input" style="width:72px; text-align:center;" />
+                class="form-input" style="width:100%; text-align:center;" />
             </div>
           </div>
           <div class="form-row">
@@ -146,9 +146,9 @@
               placeholder="Game name"
               class="form-input" />
             <input type="text" id="sessionPinInput"
-              placeholder="Host PIN (4-6)"
+              placeholder="PIN (4-6)"
               pattern="\d{4,6}" maxlength="6" inputmode="numeric"
-              class="form-input" style="flex:0 0 110px;" />
+              class="form-input" style="flex:0 0 88px;" />
           </div>
           <button type="submit" class="btn-bbq btn-bbq-primary" style="width:100%;">
             <i class="bi bi-plus-lg"></i> Create Game
@@ -279,7 +279,10 @@
             '<div style="font-weight:500;">' + esc(session.name) +
               (session.hasPin ? ' <i class="bi bi-lock-fill" style="color:var(--text-muted); font-size:0.8em;"></i>' : '') +
             '</div>' +
-            '<div style="font-size:var(--text-xs); color:var(--text-muted);">' + dateDisplay + '</div>' +
+            '<div style="font-size:var(--text-xs); color:var(--text-muted); display:flex; gap:10px; align-items:center;">' +
+              '<span>' + dateDisplay + '</span>' +
+              '<span><i class="bi bi-people-fill"></i> ' + (session.playerCount || 0) + '/' + (session.maxPlayers || 0) + '</span>' +
+            '</div>' +
           '</a>' +
           '<div class="session-card__actions">' +
             (session.status === 'active'

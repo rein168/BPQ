@@ -184,6 +184,26 @@
             <option value="Intermediate">Intermediate</option>
           </select>
         </div>
+        <!-- +1 Guest toggle -->
+        <div style="margin-bottom:12px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:var(--text-sm); color:var(--text-secondary);">
+            <input type="checkbox" id="plusOneToggle" onchange="togglePlusOne()" style="width:18px; height:18px; accent-color:var(--color-primary);" />
+            <span><i class="bi bi-person-plus"></i> Bringing a +1 guest</span>
+          </label>
+        </div>
+        <div id="plusOneFields" style="display:none; margin-bottom:12px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius-md); background:var(--bg-page);">
+          <div class="join-form-group" style="margin-bottom:8px;">
+            <label for="guestName">Guest Name</label>
+            <input type="text" id="guestName" class="join-input" placeholder="Enter guest's name" maxlength="100" />
+          </div>
+          <div class="join-form-group" style="margin-bottom:0;">
+            <label for="guestSkill">Guest Skill Level</label>
+            <select id="guestSkill" class="join-select">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+            </select>
+          </div>
+        </div>
         <button type="submit" class="btn-bbq btn-bbq-primary join-btn">
           <i class="bi bi-person-plus-fill"></i> Join Game
         </button>
@@ -291,6 +311,14 @@
       }
     }
 
+    // +1 Guest toggle
+    function togglePlusOne() {
+      const fields = document.getElementById('plusOneFields');
+      const checked = document.getElementById('plusOneToggle').checked;
+      fields.style.display = checked ? '' : 'none';
+      if (!checked) document.getElementById('guestName').value = '';
+    }
+
     // Submit registration
     document.getElementById('joinForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -305,7 +333,22 @@
         return;
       }
 
+      // Check +1 guest
+      const hasPlusOne = document.getElementById('plusOneToggle').checked;
+      let guestName = '';
+      let guestSkill = '';
+      if (hasPlusOne) {
+        guestName = document.getElementById('guestName').value.trim();
+        guestSkill = document.getElementById('guestSkill').value;
+        if (!guestName) {
+          errorEl.textContent = 'Please enter your guest\'s name.';
+          errorEl.style.display = 'block';
+          return;
+        }
+      }
+
       try {
+        // Register primary player
         const response = await fetch('/api/players/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -322,8 +365,28 @@
         // Save to localStorage for re-visit detection
         saveRegisteredPlayer(data.playerId, name);
 
+        // Register guest if +1
+        let guestMsg = '';
+        if (hasPlusOne && guestName) {
+          try {
+            const guestRes = await fetch('/api/players/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: parseInt(sessionId), name: guestName, skillLevel: guestSkill })
+            });
+            const guestData = await guestRes.json();
+            if (guestRes.ok) {
+              guestMsg = ' Your guest ' + guestName + ' has also been added.';
+            } else {
+              guestMsg = ' Guest registration: ' + (guestData.error || 'failed.');
+            }
+          } catch {
+            guestMsg = ' Could not register guest.';
+          }
+        }
+
         document.getElementById('successMessage').textContent =
-          name + ', you\'ve been added to the queue!';
+          name + ', you\'ve been added to the queue!' + guestMsg;
         showState('successState');
       } catch {
         errorEl.textContent = 'Network error. Please try again.';

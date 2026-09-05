@@ -111,11 +111,18 @@ router.get('/:sessionId/role', (req, res) => {
 router.get('/', (req, res) => {
   try {
     const sessions = sessionService.getAllSessions();
-    // Strip pin_hash from response
-    const sanitized = sessions.map(({ pin_hash, ...rest }) => ({
-      ...rest,
-      hasPin: !!pin_hash,
-    }));
+    // Strip pin_hash, add player count and max capacity
+    const sanitized = sessions.map(({ pin_hash, ...rest }) => {
+      const playerCount = sessionService.getSessionPlayers(rest.id).length;
+      const courts = sessionService.getSessionCourts(rest.id);
+      const maxPlayers = courts.length * 8;
+      return {
+        ...rest,
+        hasPin: !!pin_hash,
+        playerCount,
+        maxPlayers,
+      };
+    });
     res.json({ sessions: sanitized });
   } catch (err) {
     res.status(500).json({ error: err.message });
