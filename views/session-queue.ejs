@@ -347,9 +347,9 @@
 <body>
   <!-- Top Nav -->
   <nav class="bbq-topnav">
-    <a href="/" class="bbq-topnav__logo">
+    <div id="logoLink" class="bbq-topnav__logo">
       <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" />
-    </a>
+    </div>
     <div class="bbq-topnav__title" id="sessionName" style="flex:1; text-align:center;">Loading...</div>
     <div class="bbq-topnav__actions">
       <button class="btn-bbq btn-bbq-ghost" onclick="showQrModal()" title="Arrival QR Code" style="padding:4px 6px; font-size:28px; line-height:1;">
@@ -570,6 +570,16 @@
       userRole = role;
       document.body.classList.remove('role-host', 'role-viewer');
       document.body.classList.add('role-' + role);
+      // Make logo a link to dashboard for hosts only
+      const logo = document.getElementById('logoLink');
+      if (role === 'host' && logo.tagName !== 'A') {
+        const a = document.createElement('a');
+        a.href = '/';
+        a.className = logo.className;
+        a.id = logo.id;
+        a.innerHTML = logo.innerHTML;
+        logo.replaceWith(a);
+      }
     }
 
     function showPinModal() {

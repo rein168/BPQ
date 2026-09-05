@@ -135,9 +135,9 @@
 <body>
   <!-- Top Nav -->
   <nav class="bbq-topnav">
-    <a href="/" class="bbq-topnav__logo">
+    <div class="bbq-topnav__logo">
       <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" style="border-radius:5px;" />
-    </a>
+    </div>
     <div class="bbq-topnav__title">Register</div>
     <div class="bbq-topnav__actions"></div>
   </nav>
@@ -183,19 +183,6 @@
             <option value="Intermediate">Intermediate</option>
             <option value="Advanced">Advanced</option>
           </select>
-        </div>
-        <div class="join-form-group">
-          <label>Play Style</label>
-          <div style="display:flex; gap:8px;">
-            <label style="flex:1; display:flex; align-items:center; gap:8px; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-md); cursor:pointer; background:var(--bg-card); font-size:var(--text-sm); text-transform:none; letter-spacing:0; font-family:var(--font-body); font-weight:500; color:var(--text-primary); transition: border-color 0.15s;">
-              <input type="radio" name="mixPreference" value="same_level" checked style="accent-color:var(--color-primary);" />
-              Play with my level
-            </label>
-            <label style="flex:1; display:flex; align-items:center; gap:8px; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-md); cursor:pointer; background:var(--bg-card); font-size:var(--text-sm); text-transform:none; letter-spacing:0; font-family:var(--font-body); font-weight:500; color:var(--text-primary); transition: border-color 0.15s;">
-              <input type="radio" name="mixPreference" value="mix_me_in" style="accent-color:var(--color-primary);" />
-              Mix me in
-            </label>
-          </div>
         </div>
         <!-- +1 Guests -->
         <div id="guestsContainer"></div>
@@ -468,7 +455,6 @@
       e.preventDefault();
       const name = document.getElementById('playerName').value.trim();
       const skillLevel = document.getElementById('skillLevel').value;
-      const mixPreference = document.querySelector('input[name="mixPreference"]:checked')?.value || 'same_level';
       const errorEl = document.getElementById('joinError');
       errorEl.style.display = 'none';
 
@@ -501,7 +487,7 @@
         const response = await fetch('/api/players/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId), name, skillLevel, mixPreference })
+          body: JSON.stringify({ sessionId: parseInt(sessionId), name, skillLevel })
         });
         const data = await response.json();
 
