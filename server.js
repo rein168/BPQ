@@ -128,6 +128,11 @@ app.get('/manual', (req, res) => {
   res.render('manual');
 });
 
+// Queue explainer page
+app.get('/queue-explained', (req, res) => {
+  res.render('queue-explained');
+});
+
 // Socket.io handlers
 registerSocketHandlers(io);
 

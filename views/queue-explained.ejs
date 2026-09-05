@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBQ — How the Queue Works</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#018A60" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .qe { max-width: 480px; margin: 0 auto; padding: 0 16px 60px; }
+    .qe h1 {
+      font-size: var(--text-2xl);
+      color: var(--color-primary);
+      text-align: center;
+      margin: 16px 0 4px;
+    }
+    .qe .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      margin-bottom: 24px;
+    }
+    .step {
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: var(--text-md);
+      font-family: var(--font-heading);
+      margin-bottom: 8px;
+    }
+    .step h2 {
+      font-family: var(--font-heading);
+      font-size: var(--text-lg);
+      color: var(--text-primary);
+      margin: 0 0 6px;
+      display: inline;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .step p {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+      margin: 8px 0 0;
+    }
+    .visual {
+      margin: 12px 0 0;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .visual svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    /* Player dot colors */
+    .p-adv { fill: #ef4444; }
+    .p-int { fill: #f59e0b; }
+    .p-beg { fill: #3b82f6; }
+    .p-mix { fill: #8b5cf6; }
+    /* Dark mode safe text in SVGs */
+    .svg-text { fill: var(--text-primary); }
+    .svg-muted { fill: var(--text-muted); }
+    .svg-bg { fill: var(--bg-card); }
+    .svg-border { stroke: var(--border-subtle); fill: none; }
+    .svg-primary { fill: var(--color-primary); }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 8px 0 20px;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .connector {
+      position: absolute;
+      left: 15px;
+      top: 40px;
+      bottom: -20px;
+      width: 2px;
+      background: var(--border-subtle);
+    }
+    .step:last-child .connector { display: none; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 8px;
+      color: var(--color-primary);
+      font-size: var(--text-sm);
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <nav class="bbq-topnav">
+    <div class="bbq-topnav__logo">
+      <img src="/icons/logo.webp" alt="BBQ" width="40" height="40" style="border-radius:6px;" />
+    </div>
+    <div class="bbq-topnav__title">How the Queue Works</div>
+    <div class="bbq-topnav__actions"></div>
+  </nav>
+
+  <main class="qe">
+    <h1>🏸 The BBQ Queue</h1>
+    <p class="subtitle">How players get from the queue to the court</p>
+
+    <div class="legend">
+      <span><span class="dot" style="background:#ef4444;"></span> Advanced</span>
+      <span><span class="dot" style="background:#f59e0b;"></span> Intermediate</span>
+      <span><span class="dot" style="background:#3b82f6;"></span> Beginner</span>
+    </div>
+
+    <!-- Step 1: Players arrive and join the queue -->
+    <div class="step">
+      <div class="connector"></div>
+      <span class="step-num">1</span>
+      <h2>Players scan the Arrival QR</h2>
+      <p>When a registered player scans the Arrival QR at the venue, they enter the queue. The queue is ordered by arrival time — first in, first to play.</p>
+      <div class="visual">
+        <svg viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="400" height="120" rx="8" class="svg-bg" />
+          <text x="200" y="20" text-anchor="middle" font-size="11" font-weight="600" class="svg-muted">QUEUE (arrival order)</text>
+          <!-- Queue line -->
+          <line x1="30" y1="65" x2="370" y2="65" stroke="var(--border-subtle)" stroke-width="2" stroke-dasharray="6,4" />
+          <!-- Players as circles -->
+          <circle cx="55" cy="65" r="14" class="p-adv" /><text x="55" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">1</text>
+          <circle cx="95" cy="65" r="14" class="p-int" /><text x="95" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">2</text>
+          <circle cx="135" cy="65" r="14" class="p-beg" /><text x="135" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">3</text>
+          <circle cx="175" cy="65" r="14" class="p-adv" /><text x="175" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">4</text>
+          <circle cx="215" cy="65" r="14" class="p-int" /><text x="215" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">5</text>
+          <circle cx="255" cy="65" r="14" class="p-adv" /><text x="255" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">6</text>
+          <circle cx="295" cy="65" r="14" class="p-beg" /><text x="295" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">7</text>
+          <circle cx="335" cy="65" r="14" class="p-int" /><text x="335" y="69" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">8</text>
+          <!-- Arrow -->
+          <text x="55" y="100" text-anchor="middle" font-size="9" class="svg-muted">first</text>
+          <text x="335" y="100" text-anchor="middle" font-size="9" class="svg-muted">latest</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Step 2: Fairness sorting -->
+    <div class="step">
+      <div class="connector"></div>
+      <span class="step-num">2</span>
+      <h2>Fairness sorting</h2>
+      <p>Before assigning courts, the algorithm re-sorts the queue. Players who have played the fewest matches go first. Among those with equal matches, the one who arrived earliest goes first.</p>
+      <div class="visual">
+        <svg viewBox="0 0 400 140" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="400" height="140" rx="8" class="svg-bg" />
+          <!-- Before -->
+          <text x="20" y="22" font-size="10" font-weight="600" class="svg-muted">BEFORE (arrival order)</text>
+          <circle cx="55" cy="45" r="12" class="p-adv" opacity="0.4" /><text x="55" y="49" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">1</text>
+          <text x="55" y="67" text-anchor="middle" font-size="8" class="svg-muted">3 games</text>
+          <circle cx="105" cy="45" r="12" class="p-int" /><text x="105" y="49" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">2</text>
+          <text x="105" y="67" text-anchor="middle" font-size="8" class="svg-muted">0 games</text>
+          <circle cx="155" cy="45" r="12" class="p-beg" /><text x="155" y="49" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>
+          <text x="155" y="67" text-anchor="middle" font-size="8" class="svg-muted">1 game</text>
+          <circle cx="205" cy="45" r="12" class="p-adv" opacity="0.4" /><text x="205" y="49" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>
+          <text x="205" y="67" text-anchor="middle" font-size="8" class="svg-muted">3 games</text>
+          <!-- Arrow -->
+          <text x="200" y="88" text-anchor="middle" font-size="18" class="svg-primary">↓</text>
+          <!-- After -->
+          <text x="20" y="108" font-size="10" font-weight="600" class="svg-muted">AFTER (fewest games first)</text>
+          <circle cx="55" cy="125" r="12" class="p-int" /><text x="55" y="129" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">2</text>
+          <circle cx="105" cy="125" r="12" class="p-beg" /><text x="105" y="129" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>
+          <circle cx="155" cy="125" r="12" class="p-adv" opacity="0.4" /><text x="155" y="129" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">1</text>
+          <circle cx="205" cy="125" r="12" class="p-adv" opacity="0.4" /><text x="205" y="129" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Step 3: Skill grouping -->
+    <div class="step">
+      <div class="connector"></div>
+      <span class="step-num">3</span>
+      <h2>Skill grouping</h2>
+      <p>The algorithm groups players by skill level. If there are 4+ Advanced players waiting, they play together. Same for Intermediate and Beginner. This keeps matches competitive and fair.</p>
+      <div class="visual">
+        <svg viewBox="0 0 400 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="400" height="180" rx="8" class="svg-bg" />
+          <text x="200" y="20" text-anchor="middle" font-size="11" font-weight="600" class="svg-muted">GROUPING BY SKILL</text>
+          <!-- Advanced group -->
+          <rect x="20" y="32" width="110" height="60" rx="6" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" />
+          <text x="75" y="48" text-anchor="middle" font-size="9" font-weight="600" fill="#ef4444">ADVANCED</text>
+          <circle cx="45" cy="72" r="11" class="p-adv" /><circle cx="75" cy="72" r="11" class="p-adv" />
+          <circle cx="45" cy="72" r="11" class="p-adv" /><circle cx="75" cy="72" r="11" class="p-adv" />
+          <circle cx="105" cy="72" r="11" class="p-adv" opacity="0.4" />
+          <text x="75" y="104" text-anchor="middle" font-size="8" class="svg-muted">only 3 — not enough</text>
+          <!-- Intermediate group -->
+          <rect x="145" y="32" width="110" height="60" rx="6" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" />
+          <text x="200" y="48" text-anchor="middle" font-size="9" font-weight="600" fill="#f59e0b">INTERMEDIATE</text>
+          <circle cx="170" cy="72" r="11" class="p-int" /><circle cx="200" cy="72" r="11" class="p-int" />
+          <circle cx="230" cy="72" r="11" class="p-int" /><circle cx="170" cy="72" r="11" class="p-int" />
+          <text x="200" y="104" text-anchor="middle" font-size="8" class="svg-muted">only 3 — not enough</text>
+          <!-- Beginner group -->
+          <rect x="270" y="32" width="110" height="60" rx="6" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3" />
+          <text x="325" y="48" text-anchor="middle" font-size="9" font-weight="600" fill="#3b82f6">BEGINNER</text>
+          <circle cx="300" cy="72" r="11" class="p-beg" /><circle cx="330" cy="72" r="11" class="p-beg" />
+          <text x="325" y="104" text-anchor="middle" font-size="8" class="svg-muted">only 2 — not enough</text>
+          <!-- Mixed pool -->
+          <text x="200" y="126" text-anchor="middle" font-size="18" class="svg-primary">↓</text>
+          <rect x="60" y="135" width="280" height="35" rx="6" fill="none" stroke="#8b5cf6" stroke-width="1.5" />
+          <text x="200" y="150" text-anchor="middle" font-size="9" font-weight="600" fill="#8b5cf6">LEFTOVER → MIXED POOL (fill remaining courts)</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Step 4: Court assignment -->
+    <div class="step">
+      <div class="connector"></div>
+      <span class="step-num">4</span>
+      <h2>Court assignment</h2>
+      <p>Groups of 4 are assigned to available courts. Each group is split into Team A (2 players) and Team B (2 players). If a skill group doesn't have 4 players, the leftovers go into a mixed pool.</p>
+      <div class="visual">
+        <svg viewBox="0 0 400 140" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="400" height="140" rx="8" class="svg-bg" />
+          <!-- Court 1 -->
+          <rect x="20" y="15" width="170" height="110" rx="8" fill="none" stroke="var(--color-primary)" stroke-width="2" />
+          <rect x="20" y="15" width="170" height="22" rx="8" fill="var(--color-primary)" />
+          <text x="105" y="30" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Court 1</text>
+          <text x="60" y="52" text-anchor="middle" font-size="9" font-weight="600" class="svg-muted">Team A</text>
+          <text x="150" y="52" text-anchor="middle" font-size="9" font-weight="600" class="svg-muted">Team B</text>
+          <line x1="105" y1="42" x2="105" y2="120" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3,3" />
+          <circle cx="45" cy="75" r="13" class="p-adv" /><circle cx="75" cy="75" r="13" class="p-adv" />
+          <circle cx="135" cy="75" r="13" class="p-adv" /><circle cx="165" cy="75" r="13" class="p-adv" />
+          <text x="105" y="110" text-anchor="middle" font-size="8" class="svg-muted">vs</text>
+          <!-- Court 2 -->
+          <rect x="210" y="15" width="170" height="110" rx="8" fill="none" stroke="var(--color-primary)" stroke-width="2" />
+          <rect x="210" y="15" width="170" height="22" rx="8" fill="var(--color-primary)" />
+          <text x="295" y="30" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Court 2</text>
+          <text x="250" y="52" text-anchor="middle" font-size="9" font-weight="600" class="svg-muted">Team A</text>
+          <text x="340" y="52" text-anchor="middle" font-size="9" font-weight="600" class="svg-muted">Team B</text>
+          <line x1="295" y1="42" x2="295" y2="120" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3,3" />
+          <circle cx="235" cy="75" r="13" class="p-int" /><circle cx="265" cy="75" r="13" class="p-beg" />
+          <circle cx="325" cy="75" r="13" class="p-int" /><circle cx="355" cy="75" r="13" class="p-beg" />
+          <text x="295" y="110" text-anchor="middle" font-size="8" class="svg-muted">vs (mixed)</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Step 5: Match ends, rotation -->
+    <div class="step">
+      <div class="connector"></div>
+      <span class="step-num">5</span>
+      <h2>Match ends → rotation</h2>
+      <p>When a match ends, those 4 players go to the back of the queue. The court is now free. The algorithm immediately assigns the next 4 waiting players to that court.</p>
+      <div class="visual">
+        <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="400" height="130" rx="8" class="svg-bg" />
+          <!-- Court releasing players -->
+          <rect x="20" y="15" width="130" height="50" rx="6" fill="none" stroke="#ef4444" stroke-width="1.5" />
+          <text x="85" y="30" text-anchor="middle" font-size="9" font-weight="600" fill="#ef4444">MATCH ENDED</text>
+          <circle cx="45" cy="50" r="9" class="p-adv" opacity="0.5" />
+          <circle cx="65" cy="50" r="9" class="p-adv" opacity="0.5" />
+          <circle cx="105" cy="50" r="9" class="p-adv" opacity="0.5" />
+          <circle cx="125" cy="50" r="9" class="p-adv" opacity="0.5" />
+          <!-- Arrow to back of queue -->
+          <path d="M85 70 L85 90 L340 90" fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrowhead)" />
+          <defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="var(--text-muted)" /></marker></defs>
+          <text x="200" y="85" text-anchor="middle" font-size="8" class="svg-muted">back of the queue</text>
+          <!-- New players assigned -->
+          <rect x="200" y="15" width="180" height="50" rx="6" fill="none" stroke="var(--color-primary)" stroke-width="1.5" />
+          <text x="290" y="30" text-anchor="middle" font-size="9" font-weight="600" class="svg-primary">NEXT UP</text>
+          <circle cx="230" cy="50" r="9" class="p-int" /><circle cx="255" cy="50" r="9" class="p-beg" />
+          <circle cx="320" cy="50" r="9" class="p-int" /><circle cx="345" cy="50" r="9" class="p-beg" />
+          <!-- Arrow into court -->
+          <text x="290" y="49" text-anchor="middle" font-size="9" class="svg-muted">vs</text>
+          <text x="200" y="115" text-anchor="middle" font-size="10" class="svg-muted">🔄 Cycle repeats — everyone gets equal court time</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Step 6: The golden rule -->
+    <div class="step">
+      <span class="step-num">✓</span>
+      <h2>The golden rule</h2>
+      <p>The player who has played the fewest matches and arrived the earliest always goes next. No favourites, no politics. The algorithm handles it.</p>
+    </div>
+
+    <a href="/manual" class="back-link">← Back to Manual</a>
+  </main>
+</body>
+</html>

@@ -348,7 +348,7 @@
   <!-- Top Nav -->
   <nav class="bbq-topnav">
     <div id="logoLink" class="bbq-topnav__logo">
-      <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" />
+      <img src="/icons/logo.webp" alt="BBQ" width="40" height="40" style="border-radius:6px;" />
     </div>
     <div class="bbq-topnav__title" id="sessionName" style="flex:1; text-align:center;">Loading...</div>
     <div class="bbq-topnav__actions">
@@ -416,17 +416,6 @@
         </button>
         <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="removeCourt()" style="width:40px; height:36px; padding:0; font-size:18px; display:flex; align-items:center; justify-content:center;">
           <i class="bi bi-dash-lg"></i>
-        </button>
-      </div>
-      <!-- Mix mode toggle (host only) -->
-      <div class="host-only" id="mixModeBar" style="display:flex; align-items:center; gap:8px; padding:6px 12px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
-        <i class="bi bi-shuffle" style="color:var(--text-muted);"></i>
-        <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600; flex:1;">Skill Mix</span>
-        <button id="mixModeGrouped" class="btn-bbq btn-bbq-sm" onclick="setMixMode('grouped')" style="font-size:var(--text-xs); padding:5px 12px;">
-          <i class="bi bi-layers"></i> Grouped
-        </button>
-        <button id="mixModeOpen" class="btn-bbq btn-bbq-sm" onclick="setMixMode('open_mix')" style="font-size:var(--text-xs); padding:5px 12px;">
-          <i class="bi bi-shuffle"></i> Open Mix
         </button>
       </div>
       <div id="courtsContainer">
@@ -806,34 +795,6 @@
       }
     }
 
-    // ===== Mix mode toggle =====
-    async function setMixMode(mode) {
-      try {
-        const response = await fetch('/api/sessions/' + sessionId + '/mix-mode', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId), mixMode: mode })
-        });
-        const data = await response.json();
-        if (!data.success) alert(data.error || 'Failed to update mix mode');
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
-    }
-
-    function updateMixModeUI(mixMode) {
-      const grouped = document.getElementById('mixModeGrouped');
-      const open = document.getElementById('mixModeOpen');
-      if (!grouped || !open) return;
-      if (mixMode === 'open_mix') {
-        grouped.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
-        open.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
-      } else {
-        grouped.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
-        open.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
-      }
-    }
-
     async function setPlayerStatus(playerId, status) {
       try {
         await fetch('/api/players/' + playerId + '/status', {
@@ -1114,9 +1075,6 @@
       // Update court count input
       const courtCountEl = document.getElementById('courtCountInput');
       if (courtCountEl && courts) courtCountEl.value = courts.length;
-
-      // Update mix mode toggle
-      updateMixModeUI(session.mix_mode || 'grouped');
 
       // === Courts tab ===
       const courtsContainer = document.getElementById('courtsContainer');

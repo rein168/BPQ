@@ -58,7 +58,7 @@
 <body>
   <nav class="bbq-topnav">
     <a href="/" class="bbq-topnav__logo">
-      <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" />
+      <img src="/icons/logo.webp" alt="BBQ" width="40" height="40" style="border-radius:6px;" />
     </a>
     <div class="bbq-topnav__title">Manual</div>
     <div class="bbq-topnav__actions"></div>
@@ -79,7 +79,7 @@
       <li><a href="#queue">Queue tab</a></li>
       <li><a href="#players">Players tab</a></li>
       <li><a href="#controls">Player controls</a></li>
-      <li><a href="#host">Host actions</a></li>
+      <li><a href="#host">Host and co-host actions</a></li>
       <li><a href="#end">Ending a game</a></li>
     </ul>
 
@@ -88,8 +88,8 @@
     <p>One person acts as the host. Everyone else opens the app on their phone to check their spot in the queue.</p>
 
     <h2 id="setup">Setting up a game</h2>
-    <p>Go to the home screen. Fill in the date, number of courts, and a game name if you want one. Set a 4-digit PIN to protect host actions. Tap <strong>Create Game</strong>.</p>
-    <p>The PIN keeps players from accidentally (or intentionally) messing with court assignments. Share it only with co-hosts.</p>
+    <p>Only the host sets up a game. Go to the home screen. Fill in the date, number of courts, and a game name if you want one. Set a 4-digit PIN to protect host actions. Tap <strong>Create Game</strong>.</p>
+    <p>The PIN keeps players from messing with court assignments. Share it with trusted people to make them co-hosts — anyone with the PIN has full host access.</p>
     <p>Each court holds up to 8 players: 4 playing, 4 in the next rotation.</p>
 
     <h2 id="registration">Registration and arrival</h2>
@@ -108,7 +108,10 @@
       <li><span class="icon-label"><i class="bi bi-play-fill"></i> Blinking</span> — match in progress. A timer tracks how long it's been running. After 15 minutes the timer turns amber. After 20 it turns red.</li>
       <li><strong>Waiting for players</strong> — not enough players in the queue to fill the court.</li>
     </ul>
-    <p>Tap <strong>START MATCH</strong> on a ready court. Once the match is running, the button changes to <strong>END MATCH</strong>. When the match ends, the next batch of players rotates in automatically.</p>
+
+    <h3>Starting and ending matches</h3>
+    <p>Any player assigned to a court, or the host/co-host, can tap <strong>START MATCH</strong>. Once someone taps it, the button locks — no one else can tap it again. This prevents double-taps.</p>
+    <p>When the match is done, the button changes to <strong>END MATCH</strong>. Same rule: one person taps it, it locks. Whoever ends the match enters the score. After that, the next batch of players rotates in automatically.</p>
 
     <h2 id="queue">Queue tab</h2>
     <p>The queue shows upcoming court assignments. Each batch card displays:</p>
@@ -118,13 +121,8 @@
       <li>How long the longest-waiting player has been queued.</li>
       <li>Status: <strong>Get Ready</strong> (next up), <strong>Up Next</strong>, <strong>In Queue</strong>, or <strong>Looking for Players</strong> if the batch is short.</li>
     </ul>
-    <p>BBQ assigns players first-come, first-served. Skill mix mode controls team composition.</p>
-
-    <h3>Skill mix modes</h3>
-    <ul>
-      <li><strong>Grouped</strong> — matches players of similar skill. Beginners play beginners, advanced play advanced.</li>
-      <li><strong>Open Mix</strong> — ignores skill level, pure queue order.</li>
-    </ul>
+    <p>BBQ assigns players first-come, first-served. The algorithm handles team composition and court allocation automatically.</p>
+    <p><a href="/queue-explained" style="color:var(--color-primary);">How the queueing system works →</a></p>
 
     <h2 id="players">Players tab</h2>
     <p>Lists every player who has checked in. Each card shows their name, skill level, arrival time, and current court (if playing).</p>
@@ -148,16 +146,15 @@
     </ul>
     <p>These buttons are hidden for regular players and only show when relevant.</p>
 
-    <h2 id="host">Host actions</h2>
-    <p>Enter the 4-digit PIN to unlock host controls. The host can:</p>
+    <h2 id="host">Host and co-host actions</h2>
+    <p>Enter the 4-digit PIN to unlock host controls. Anyone with the PIN is a co-host and gets the same access. The host/co-host can:</p>
     <ul>
       <li>Skip or rewind players.</li>
       <li>Stop another player (mark them as left).</li>
-      <li>Change skill mix mode.</li>
       <li>Add or remove courts (using the +/− buttons at the top of Courts tab).</li>
       <li>End the entire session.</li>
     </ul>
-    <p>Starting and ending matches on a court doesn't require the PIN. Any player on the court can tap START MATCH or END MATCH.</p>
+    <p>Starting and ending matches on a court doesn't require the PIN. Any player assigned to the court can do it too. The host/co-host can also start or end matches on any court.</p>
     <p>Without the PIN, players can pause/unpause themselves and view the queue, but can't skip others or change settings.</p>
 
     <h2 id="end">Ending a game</h2>
