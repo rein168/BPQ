@@ -174,7 +174,7 @@
       <div class="connector"></div>
       <span class="step-num">2</span>
       <h2>Fairness sorting</h2>
-      <p>Before assigning courts, the algorithm re-sorts the queue. Players who have played the fewest matches go first. Among those with equal matches, the one who arrived earliest goes first.</p>
+      <p>At the start of a session, everyone has 0 games — so the queue stays in arrival order and the algorithm skips straight to skill grouping. After the first round of matches, fairness kicks in: players who have played the fewest matches move to the front. Among those with equal matches, the one who arrived earliest goes first.</p>
       <div class="visual">
         <svg viewBox="0 0 400 140" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="0" width="400" height="140" rx="8" class="svg-bg" />
