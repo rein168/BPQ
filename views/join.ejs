@@ -221,6 +221,20 @@
         <div class="checkmark" style="background:var(--green-100);"><i class="bi bi-person-check"></i></div>
         <h2 id="welcomeBackName">Welcome Back!</h2>
         <p id="alreadyMessage">You're already registered for this game.</p>
+
+        <!-- Add +1 Guest for returning players -->
+        <div id="returningGuestSection" style="margin-top:20px; text-align:left; width:100%;">
+          <div id="returningGuestsContainer"></div>
+          <button type="button" class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="addReturningGuest()" style="width:100%; margin-bottom:12px;">
+            <i class="bi bi-person-plus"></i> +1 Guest
+          </button>
+          <button type="button" id="registerGuestsBtn" class="btn-bbq btn-bbq-primary" onclick="registerReturningGuests()" style="width:100%; display:none;">
+            <i class="bi bi-person-plus-fill"></i> Register Guests
+          </button>
+          <div id="returningGuestError" class="join-error" style="margin-top:8px;"></div>
+          <div id="returningGuestSuccess" class="join-info" style="margin-top:8px; display:none;"></div>
+        </div>
+
         <a id="sessionLinkExisting" href="#" class="btn-bbq btn-bbq-primary" style="margin-top:16px;">
           <i class="bi bi-eye"></i> View Game
         </a>
@@ -334,6 +348,104 @@
     function removeGuest(guestId) {
       const el = document.getElementById(guestId);
       if (el) el.remove();
+      // Toggle register button visibility for returning guests
+      updateReturningGuestBtn();
+    }
+
+    // Returning player +1 guest functions
+    let returningGuestCount = 0;
+    function addReturningGuest() {
+      returningGuestCount++;
+      const container = document.getElementById('returningGuestsContainer');
+      const guestId = 'rguest-' + returningGuestCount;
+      const div = document.createElement('div');
+      div.id = guestId;
+      div.style.cssText = 'margin-bottom:12px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius-md); background:var(--bg-page);';
+      div.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+          '<span style="font-family:var(--font-heading); font-weight:600; font-size:var(--text-sm); color:var(--text-secondary);"><i class="bi bi-person-plus"></i> +1 GUEST</span>' +
+          '<button type="button" class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="removeReturningGuest(\'' + guestId + '\')" style="padding:2px 6px; color:var(--color-danger);"><i class="bi bi-x-lg"></i></button>' +
+        '</div>' +
+        '<div class="join-form-group" style="margin-bottom:8px;">' +
+          '<input type="text" class="join-input guest-name" placeholder="Guest name" maxlength="100" />' +
+        '</div>' +
+        '<div class="join-form-group" style="margin-bottom:0;">' +
+          '<select class="join-select guest-skill">' +
+            '<option value="Beginner">Beginner</option>' +
+            '<option value="Intermediate">Intermediate</option>' +
+          '</select>' +
+        '</div>';
+      container.appendChild(div);
+      updateReturningGuestBtn();
+    }
+
+    function removeReturningGuest(guestId) {
+      const el = document.getElementById(guestId);
+      if (el) el.remove();
+      updateReturningGuestBtn();
+    }
+
+    function updateReturningGuestBtn() {
+      const hasGuests = document.querySelectorAll('#returningGuestsContainer > div').length > 0;
+      document.getElementById('registerGuestsBtn').style.display = hasGuests ? '' : 'none';
+    }
+
+    async function registerReturningGuests() {
+      const errorEl = document.getElementById('returningGuestError');
+      const successEl = document.getElementById('returningGuestSuccess');
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      const guests = [];
+      const inputs = document.querySelectorAll('#returningGuestsContainer .guest-name');
+      for (const input of inputs) {
+        if (!input.value.trim()) {
+          errorEl.textContent = 'Please enter a name for each guest, or remove empty ones.';
+          errorEl.style.display = 'block';
+          return;
+        }
+        const div = input.closest('[id^="rguest-"]');
+        guests.push({ name: input.value.trim(), skillLevel: div.querySelector('.guest-skill').value });
+      }
+
+      if (guests.length === 0) return;
+
+      const btn = document.getElementById('registerGuestsBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Registering...';
+
+      const results = [];
+      for (const guest of guests) {
+        try {
+          const res = await fetch('/api/players/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: parseInt(sessionId), name: guest.name, skillLevel: guest.skillLevel })
+          });
+          const data = await res.json();
+          results.push({ name: guest.name, ok: res.ok, error: data.error });
+        } catch {
+          results.push({ name: guest.name, ok: false, error: 'Network error' });
+        }
+      }
+
+      const ok = results.filter(r => r.ok);
+      const fail = results.filter(r => !r.ok);
+
+      if (ok.length > 0) {
+        successEl.innerHTML = '<i class="bi bi-check-circle"></i> ' + esc(ok.map(r => r.name).join(', ')) + ' added!';
+        successEl.style.display = 'flex';
+        // Clear registered guest cards
+        document.getElementById('returningGuestsContainer').innerHTML = '';
+        updateReturningGuestBtn();
+      }
+      if (fail.length > 0) {
+        errorEl.textContent = 'Could not add: ' + fail.map(r => r.name + ' (' + r.error + ')').join(', ');
+        errorEl.style.display = 'block';
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-person-plus-fill"></i> Register Guests';
     }
 
     // Submit registration
