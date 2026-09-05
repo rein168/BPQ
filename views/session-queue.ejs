@@ -1109,7 +1109,7 @@
       renderQueueTab(players, courts);
     }
 
-    let playerFilter = null; // null = all, 'waiting', 'playing', 'break', 'left_early'
+    let playerFilter = null; // null = all, 'registered', 'arrived', 'waiting', 'playing', 'break', 'left_early'
 
     function togglePlayerFilter(filter) {
       playerFilter = (playerFilter === filter) ? null : filter;
@@ -1145,18 +1145,26 @@
         '</button>';
       }
 
+      const registered = allPlayers.length;
+      const notArrived = registered - arrived;
+
       summaryEl.innerHTML =
-        '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px; font-size:var(--text-sm); color:var(--text-muted);"><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + allPlayers.length + '/' + maxPlayers + '</strong> registered &middot; <strong>' + arrived + '</strong> arrived</div>' +
         '<div style="display:flex; flex-wrap:wrap; gap:6px;">' +
-          chip('playing', playing, '<i class="bi bi-controller"></i>', 'playing', 'coral') +
-          chip('waiting', waiting, '<i class="bi bi-hourglass-split"></i>', 'waiting', 'green') +
-          (onBreak > 0 ? chip('break', onBreak, '<i class="bi bi-cup-hot"></i>', 'break', 'amber') : '') +
-          (leftEarly > 0 ? chip('left', leftEarly, '<i class="bi bi-box-arrow-right"></i>', 'left_early', 'grey') : '') +
+          chip('registered', registered + '/' + maxPlayers, '<i class="bi bi-people-fill"></i>', 'registered') +
+          chip('arrived', arrived, '<i class="bi bi-check-circle-fill"></i>', 'arrived') +
+          chip('playing', playing, '<i class="bi bi-controller"></i>', 'playing') +
+          chip('waiting', waiting, '<i class="bi bi-hourglass-split"></i>', 'waiting') +
+          (onBreak > 0 ? chip('break', onBreak, '<i class="bi bi-pause-fill"></i>', 'break') : '') +
+          (leftEarly > 0 ? chip('left', leftEarly, '<i class="bi bi-eject-fill"></i>', 'left_early') : '') +
         '</div>';
 
       // Apply filter
       let filtered = allPlayers;
-      if (playerFilter === 'waiting') {
+      if (playerFilter === 'registered') {
+        filtered = allPlayers; // all registered players
+      } else if (playerFilter === 'arrived') {
+        filtered = allPlayers.filter(p => p.arrived_at);
+      } else if (playerFilter === 'waiting') {
         filtered = allPlayers.filter(p => p.status === 'waiting' || p.status === 'rested');
       } else if (playerFilter === 'break') {
         filtered = allPlayers.filter(p => p.status === 'break');
@@ -1171,21 +1179,18 @@
         const statusBadge = '<span class="badge-status badge-' + esc(p.status) + '">' + esc(p.status.replace('_', ' ')) + '</span>';
         const arrivalDot = '<span class="arrival-dot ' + (p.arrived_at ? 'arrival-dot--arrived' : 'arrival-dot--pending') + '" title="' + (p.arrived_at ? 'Arrived ' + formatTime(p.arrived_at) : 'Not arrived') + '"></span>';
 
-        // Retro music player action bar
+        // Retro music player action bar: ⏸ Pause, ▶ Play, ⏏ Eject
         let actionBar = '';
         if (p.status !== 'playing') {
           let buttons = '';
           if (p.status === 'waiting' || p.status === 'rested') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break" class="retro-btn"><i class="bi bi-cup-hot"></i><span>Break</span></button>';
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" class="retro-btn"><i class="bi bi-box-arrow-right"></i><span>Leaving</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break" class="retro-btn"><i class="bi bi-pause-fill"></i><span>Pause</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Leaving early" class="retro-btn"><i class="bi bi-eject-fill"></i><span>Eject</span></button>';
           } else if (p.status === 'break') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Return</span></button>';
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" class="retro-btn"><i class="bi bi-box-arrow-right"></i><span>Leaving</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Play</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Leaving early" class="retro-btn"><i class="bi bi-eject-fill"></i><span>Eject</span></button>';
           } else if (p.status === 'skipped' || p.status === 'left_early') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Return</span></button>';
-          }
-          if (userRole === 'host' && p.status !== 'playing') {
-            buttons += '<button onclick="removePlayer(' + p.id + ')" title="Remove from session" class="retro-btn" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i><span>Remove</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Play</span></button>';
           }
           if (buttons) {
             actionBar = '<div class="retro-bar">' + buttons + '</div>';
