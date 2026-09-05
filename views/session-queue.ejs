@@ -98,14 +98,14 @@
     .player-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 8px;
-      padding: 12px 0;
+      gap: 4px;
+      padding: 8px 0;
     }
     .player-card {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
+      gap: 10px;
+      padding: 8px 12px;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       background: var(--bg-card);
@@ -171,8 +171,8 @@
     }
     .players-summary {
       display: flex;
-      gap: 12px;
-      padding: 12px 0;
+      gap: 10px;
+      padding: 8px 0;
       font-size: var(--text-sm);
       color: var(--text-secondary);
       flex-wrap: wrap;
@@ -254,13 +254,13 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       background: var(--bg-card);
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       overflow: hidden;
     }
     .batch-card__header {
       background: var(--color-primary);
       color: #fff;
-      padding: 8px 14px;
+      padding: 6px 12px;
       font-family: var(--font-heading);
       font-weight: 600;
       font-size: var(--text-sm);
@@ -269,7 +269,7 @@
       align-items: center;
     }
     .batch-card__body {
-      padding: 12px 14px;
+      padding: 8px 12px;
       display: flex;
       gap: 8px;
     }
@@ -419,7 +419,7 @@
         </button>
       </div>
       <!-- Mix mode toggle (host only) -->
-      <div class="host-only" id="mixModeBar" style="display:flex; align-items:center; gap:10px; padding:8px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+      <div class="host-only" id="mixModeBar" style="display:flex; align-items:center; gap:8px; padding:6px 12px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
         <i class="bi bi-shuffle" style="color:var(--text-muted);"></i>
         <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600; flex:1;">Skill Mix</span>
         <button id="mixModeGrouped" class="btn-bbq btn-bbq-sm" onclick="setMixMode('grouped')" style="font-size:var(--text-xs); padding:5px 12px;">
@@ -451,7 +451,7 @@
     <!-- QUEUE TAB -->
     <div id="tab-queue" class="tab-pane">
       <!-- Explainer -->
-      <div style="display:flex; align-items:flex-start; gap:8px; padding:10px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-xs); color:var(--text-muted);">
+      <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 12px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-xs); color:var(--text-muted);">
         <i class="bi bi-info-circle" style="flex-shrink:0; margin-top:1px;"></i>
         <span>Court assignments are tentative and will change based on which court becomes available first.</span>
       </div>
@@ -1115,7 +1115,7 @@
 
         // End Game button (host only)
         if (userRole === 'host') {
-          courtsContainer.innerHTML += '<div class="host-only" style="text-align:center; margin-top:24px;">' +
+          courtsContainer.innerHTML += '<div class="host-only" style="text-align:center; margin-top:16px;">' +
             '<button onclick="endSession()" class="btn-bbq" style="background:var(--color-danger); color:#fff; border:none; padding:10px 28px; border-radius:var(--radius-md); font-weight:700; cursor:pointer; font-size:var(--text-sm);">' +
               '<i class="bi bi-stop-fill"></i> End Game' +
             '</button>' +
@@ -1325,7 +1325,7 @@
       // Queue summary header
       const totalQueued = queuePlayers.length;
       const playingCount = players.filter(p => p.status === 'playing').length;
-      let html = '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-sm);">' +
+      let html = '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); font-size:var(--text-sm);">' +
         '<div><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + totalQueued + '</strong> in queue</div>' +
         '<div><i class="bi bi-play-fill" style="color:var(--color-primary);"></i> <strong>' + playingCount + '</strong> playing</div>' +
         '<div><i class="bi bi-pause-fill" style="color:var(--color-warning);"></i> <strong>' + onBreak.length + '</strong> on break</div>' +
@@ -1360,7 +1360,7 @@
 
       // On Break section
       if (onBreak.length > 0) {
-        html += '<div class="batch-card" style="margin:16px 0 12px; border-color:var(--color-warning);">';
+        html += '<div class="batch-card" style="margin:10px 0 8px; border-color:var(--color-warning);">';
         html += '<div style="background:var(--color-warning); color:#fff; padding:8px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-sm); display:flex; justify-content:space-between; align-items:center;">' +
           '<span><i class="bi bi-pause-fill"></i> On Break</span>' +
           '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">' + onBreak.length + ' player' + (onBreak.length > 1 ? 's' : '') + '</span>' +
@@ -1386,7 +1386,7 @@
 
       // Skipped section (host only)
       if (skipped.length > 0) {
-        html += '<div class="batch-card host-only" style="margin:8px 0 12px; border-color:var(--neutral-500); opacity:0.7;">';
+        html += '<div class="batch-card host-only" style="margin:6px 0 8px; border-color:var(--neutral-500); opacity:0.7;">';
         html += '<div style="background:var(--neutral-600); color:#fff; padding:8px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-sm); display:flex; justify-content:space-between; align-items:center;">' +
           '<span><i class="bi bi-skip-forward-fill"></i> Skipped</span>' +
           '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">' + skipped.length + '</span>' +
@@ -1452,8 +1452,8 @@
         timerHtml = '<div style="font-size:var(--text-xs); color:var(--text-muted); text-align:center; padding:4px 0;">Warming up</div>';
       }
 
-      let html = '<div class="batch-card" style="margin:0 0 12px; opacity:0.85;">';
-      html += '<div style="background:#92400E; color:#fff; padding:10px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
+      let html = '<div class="batch-card" style="margin:0 0 8px; opacity:0.85;">';
+      html += '<div style="background:#92400E; color:#fff; padding:8px 12px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
         '<span><i class="bi bi-geo-alt-fill"></i> Next in ' + esc(courtName) + '</span>' +
         '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">🏸 In Play</span>' +
       '</div>';
@@ -1510,18 +1510,18 @@
         statusIcon = '<i class="bi bi-clock"></i> ';
       }
 
-      let html = '<div class="batch-card" style="margin:0 0 12px;">';
+      let html = '<div class="batch-card" style="margin:0 0 8px;">';
 
       // Court header — prefix with "Next in" to distinguish from Courts tab
       const courtLabel = courtName ? 'Next in ' + esc(courtName) : 'Court TBD';
       const courtIcon = courtName ? '<i class="bi bi-geo-alt-fill"></i> ' : '<i class="bi bi-question-circle"></i> ';
-      html += '<div style="background:' + headerBg + '; color:#fff; padding:10px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
+      html += '<div style="background:' + headerBg + '; color:#fff; padding:8px 12px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
         '<span>' + courtIcon + courtLabel + '</span>' +
         '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">' + statusIcon + statusLabel + '</span>' +
       '</div>';
 
       // Batch sub-header with wait timer
-      html += '<div style="padding:6px 14px; font-size:var(--text-xs); color:var(--text-muted); border-bottom:1px solid var(--border-subtle); font-weight:600; display:flex; justify-content:space-between; align-items:center;">' +
+      html += '<div style="padding:4px 12px; font-size:var(--text-xs); color:var(--text-muted); border-bottom:1px solid var(--border-subtle); font-weight:600; display:flex; justify-content:space-between; align-items:center;">' +
         '<span>Batch ' + batchNum + (isFull ? '' : ' — need ' + (playersPerCourt - batch.length) + ' more for full court') + '</span>' +
         '<span style="font-variant-numeric:tabular-nums;"><i class="bi bi-stopwatch"></i> ' + waitStr + '</span>' +
       '</div>';
