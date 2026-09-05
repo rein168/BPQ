@@ -61,6 +61,39 @@
       text-align: center;
     }
 
+    /* Retro music player action bar */
+    .retro-bar {
+      display: flex;
+      margin-top: 8px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .retro-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 4px;
+      background: var(--bg-page);
+      border: none;
+      border-right: 1.5px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      transition: background 0.15s;
+    }
+    .retro-btn:last-child { border-right: none; }
+    .retro-btn:hover, .retro-btn:active { background: var(--neutral-200); }
+    .retro-btn span {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     /* Player card grid for Players tab */
     .player-grid {
       display: grid;
@@ -1076,8 +1109,15 @@
       renderQueueTab(players, courts);
     }
 
+    let playerFilter = null; // null = all, 'waiting', 'playing', 'break', 'left_early'
+
+    function togglePlayerFilter(filter) {
+      playerFilter = (playerFilter === filter) ? null : filter;
+      if (sessionState) renderPlayersTab(sessionState.players);
+    }
+
     function renderPlayersTab(players) {
-      const allPlayers = players; // Show all RSVP'd players
+      const allPlayers = players;
       const container = document.getElementById('playersContainer');
       const summaryEl = document.getElementById('playersSummary');
 
@@ -1090,51 +1130,84 @@
       const playing = allPlayers.filter(p => p.status === 'playing').length;
       const waiting = allPlayers.filter(p => p.status === 'waiting' || p.status === 'rested').length;
       const onBreak = allPlayers.filter(p => p.status === 'break').length;
+      const leftEarly = allPlayers.filter(p => p.status === 'left_early').length;
       const arrived = allPlayers.filter(p => p.arrived_at).length;
       const maxPlayers = (sessionState && sessionState.config) ? sessionState.config.maxPlayers : '?';
+
+      // Clickable filter chips
+      function chip(label, count, icon, filterKey, color) {
+        const isActive = playerFilter === filterKey;
+        const bg = isActive ? 'var(--color-primary)' : 'transparent';
+        const fg = isActive ? '#fff' : 'var(--text-secondary)';
+        const border = isActive ? 'var(--color-primary)' : 'var(--border)';
+        return '<button onclick="togglePlayerFilter(\'' + filterKey + '\')" style="display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border:1.5px solid ' + border + '; border-radius:var(--radius-pill); background:' + bg + '; color:' + fg + '; font-size:var(--text-xs); font-weight:600; cursor:pointer; font-family:var(--font-body); transition:all 0.15s;">' +
+          icon + ' <strong>' + count + '</strong> ' + label +
+        '</button>';
+      }
+
       summaryEl.innerHTML =
-        '<div class="players-summary__stat"><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + allPlayers.length + '/' + maxPlayers + '</strong> registered</div>' +
-        '<div class="players-summary__stat"><span class="arrival-dot arrival-dot--arrived"></span> <strong>' + arrived + '</strong> arrived</div>' +
-        '<div class="players-summary__stat"><i class="bi bi-controller" style="color:var(--coral-500);"></i> <strong>' + playing + '</strong> playing</div>' +
-        '<div class="players-summary__stat"><i class="bi bi-hourglass-split" style="color:var(--green-700);"></i> <strong>' + waiting + '</strong> waiting</div>' +
-        (onBreak > 0 ? '<div class="players-summary__stat"><i class="bi bi-cup-hot" style="color:#856404;"></i> <strong>' + onBreak + '</strong> on break</div>' : '');
+        '<div style="display:flex; align-items:center; gap:4px; margin-bottom:4px; font-size:var(--text-sm); color:var(--text-muted);"><i class="bi bi-people-fill" style="color:var(--color-primary);"></i> <strong>' + allPlayers.length + '/' + maxPlayers + '</strong> registered &middot; <strong>' + arrived + '</strong> arrived</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+          chip('playing', playing, '<i class="bi bi-controller"></i>', 'playing', 'coral') +
+          chip('waiting', waiting, '<i class="bi bi-hourglass-split"></i>', 'waiting', 'green') +
+          (onBreak > 0 ? chip('break', onBreak, '<i class="bi bi-cup-hot"></i>', 'break', 'amber') : '') +
+          (leftEarly > 0 ? chip('left', leftEarly, '<i class="bi bi-box-arrow-right"></i>', 'left_early', 'grey') : '') +
+        '</div>';
+
+      // Apply filter
+      let filtered = allPlayers;
+      if (playerFilter === 'waiting') {
+        filtered = allPlayers.filter(p => p.status === 'waiting' || p.status === 'rested');
+      } else if (playerFilter === 'break') {
+        filtered = allPlayers.filter(p => p.status === 'break');
+      } else if (playerFilter === 'playing') {
+        filtered = allPlayers.filter(p => p.status === 'playing');
+      } else if (playerFilter === 'left_early') {
+        filtered = allPlayers.filter(p => p.status === 'left_early');
+      }
 
       let html = '<div class="player-grid">';
-      for (const p of allPlayers) {
+      for (const p of filtered) {
         const statusBadge = '<span class="badge-status badge-' + esc(p.status) + '">' + esc(p.status.replace('_', ' ')) + '</span>';
         const arrivalDot = '<span class="arrival-dot ' + (p.arrived_at ? 'arrival-dot--arrived' : 'arrival-dot--pending') + '" title="' + (p.arrived_at ? 'Arrived ' + formatTime(p.arrived_at) : 'Not arrived') + '"></span>';
 
-        let actions = '';
-        if (p.status === 'waiting' || p.status === 'rested') {
-          actions = '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break"><i class="bi bi-cup-hot"></i></button>';
-          if (userRole === 'host') {
-            actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'skipped\')" title="Skip"><i class="bi bi-skip-forward"></i></button>';
+        // Retro music player action bar
+        let actionBar = '';
+        if (p.status !== 'playing') {
+          let buttons = '';
+          if (p.status === 'waiting' || p.status === 'rested') {
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break" class="retro-btn"><i class="bi bi-cup-hot"></i><span>Break</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" class="retro-btn"><i class="bi bi-box-arrow-right"></i><span>Leaving</span></button>';
+          } else if (p.status === 'break') {
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Return</span></button>';
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" class="retro-btn"><i class="bi bi-box-arrow-right"></i><span>Leaving</span></button>';
+          } else if (p.status === 'skipped' || p.status === 'left_early') {
+            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Return</span></button>';
           }
-        } else if (p.status === 'break') {
-          actions = '<button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue"><i class="bi bi-arrow-return-left"></i></button>';
-        } else if (p.status === 'skipped') {
-          actions = '<button class="btn-bbq btn-bbq-outline btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Unskip"><i class="bi bi-arrow-return-left"></i></button>';
+          if (userRole === 'host' && p.status !== 'playing') {
+            buttons += '<button onclick="removePlayer(' + p.id + ')" title="Remove from session" class="retro-btn" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i><span>Remove</span></button>';
+          }
+          if (buttons) {
+            actionBar = '<div class="retro-bar">' + buttons + '</div>';
+          }
         }
 
-        if (userRole === 'host' && p.status !== 'playing') {
-          actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Left early" style="color:var(--color-danger);"><i class="bi bi-box-arrow-right"></i></button>';
-          actions += '<button class="btn-bbq btn-bbq-ghost btn-bbq-sm host-only" onclick="removePlayer(' + p.id + ')" title="Remove" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i></button>';
-        }
-
-        html += '<div class="player-card">' +
-          '<div class="player-card__info">' +
-            '<div class="player-card__name">' + arrivalDot + ' ' + esc(p.name) + '</div>' +
-            '<div class="player-card__meta">' +
-              '<span class="badge-skill badge-' + esc(p.skill_level.toLowerCase()) + '">' + esc(p.skill_level) + '</span>' +
-              statusBadge +
-              '<span>' + formatTime(p.arrived_at || p.created_at) + '</span>' +
+        html += '<div class="player-card" style="flex-direction:column; align-items:stretch;">' +
+          '<div style="display:flex; align-items:center; gap:12px;">' +
+            '<div class="player-card__info">' +
+              '<div class="player-card__name">' + arrivalDot + ' ' + esc(p.name) + '</div>' +
+              '<div class="player-card__meta">' +
+                skillBadge(p.skill_level) +
+                statusBadge +
+                '<span>' + formatTime(p.arrived_at || p.created_at) + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="player-card__stats">' +
+              '<div class="player-card__wl"><span class="record-w">' + (p.wins || 0) + '</span>-<span class="record-l">' + (p.losses || 0) + '</span></div>' +
+              '<div class="player-card__games">' + (p.games_played || 0) + ' games</div>' +
             '</div>' +
           '</div>' +
-          '<div class="player-card__stats">' +
-            '<div class="player-card__wl"><span class="record-w">' + (p.wins || 0) + '</span>-<span class="record-l">' + (p.losses || 0) + '</span></div>' +
-            '<div class="player-card__games">' + (p.games_played || 0) + ' games</div>' +
-          '</div>' +
-          (actions ? '<div class="player-card__actions">' + actions + '</div>' : '') +
+          actionBar +
         '</div>';
       }
       html += '</div>';
