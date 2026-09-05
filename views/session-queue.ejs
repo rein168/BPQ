@@ -1152,10 +1152,10 @@
         '<div style="display:flex; flex-wrap:wrap; gap:6px;">' +
           chip('registered', registered + '/' + maxPlayers, '<i class="bi bi-people-fill"></i>', 'registered') +
           chip('arrived', arrived, '<i class="bi bi-check-circle-fill"></i>', 'arrived') +
-          chip('playing', playing, '<i class="bi bi-controller"></i>', 'playing') +
+          chip('playing', playing, '<i class="bi bi-play-fill"></i>', 'playing') +
           chip('waiting', waiting, '<i class="bi bi-hourglass-split"></i>', 'waiting') +
           (onBreak > 0 ? chip('break', onBreak, '<i class="bi bi-pause-fill"></i>', 'break') : '') +
-          (leftEarly > 0 ? chip('left', leftEarly, '<i class="bi bi-eject-fill"></i>', 'left_early') : '') +
+          (leftEarly > 0 ? chip('left', leftEarly, '<i class="bi bi-stop-fill"></i>', 'left_early') : '') +
         '</div>';
 
       // Apply filter
@@ -1176,43 +1176,63 @@
 
       let html = '<div class="player-grid">';
       for (const p of filtered) {
-        const statusBadge = '<span class="badge-status badge-' + esc(p.status) + '">' + esc(p.status.replace('_', ' ')) + '</span>';
-        const arrivalDot = '<span class="arrival-dot ' + (p.arrived_at ? 'arrival-dot--arrived' : 'arrival-dot--pending') + '" title="' + (p.arrived_at ? 'Arrived ' + formatTime(p.arrived_at) : 'Not arrived') + '"></span>';
+        const arrivalTime = p.arrived_at ? formatTime(p.arrived_at) : 'Not arrived';
 
-        // Retro music player action bar: ⏸ Pause, ▶ Play, ⏏ Eject
-        let actionBar = '';
-        if (p.status !== 'playing') {
-          let buttons = '';
-          if (p.status === 'waiting' || p.status === 'rested') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'break\')" title="Take a break" class="retro-btn"><i class="bi bi-pause-fill"></i><span>Pause</span></button>';
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Leaving early" class="retro-btn"><i class="bi bi-eject-fill"></i><span>Eject</span></button>';
-          } else if (p.status === 'break') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Play</span></button>';
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'left_early\')" title="Leaving early" class="retro-btn"><i class="bi bi-eject-fill"></i><span>Eject</span></button>';
-          } else if (p.status === 'skipped' || p.status === 'left_early') {
-            buttons += '<button onclick="setPlayerStatus(' + p.id + ',\'waiting\')" title="Back in queue" class="retro-btn" style="color:var(--color-primary);"><i class="bi bi-play-fill"></i><span>Play</span></button>';
-          }
-          if (buttons) {
-            actionBar = '<div class="retro-bar">' + buttons + '</div>';
-          }
+        // Transport control buttons: ▶ Play, ⏸ Pause, ⏹ Stop
+        // The active state button gets a green background to show current status
+        const isPlaying = (p.status === 'playing');
+        const isWaiting = (p.status === 'waiting' || p.status === 'rested');
+        const isBreak = (p.status === 'break');
+        const isLeft = (p.status === 'left_early' || p.status === 'skipped');
+
+        function tBtn(icon, label, active, onclick, activeColor) {
+          const bg = active ? (activeColor || 'var(--color-primary)') : 'transparent';
+          const fg = active ? '#fff' : 'var(--text-muted)';
+          const border = active ? (activeColor || 'var(--color-primary)') : 'var(--border)';
+          const disabled = onclick ? '' : ' disabled';
+          const click = onclick ? ' onclick="' + onclick + '"' : '';
+          return '<button class="transport-btn"' + click + disabled + ' title="' + label + '" style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; border:1.5px solid ' + border + '; border-radius:6px; background:' + bg + '; color:' + fg + '; font-size:16px; cursor:' + (onclick ? 'pointer' : 'default') + '; padding:0; transition:all 0.15s;">' +
+            '<i class="bi bi-' + icon + '"></i></button>';
         }
 
-        html += '<div class="player-card" style="flex-direction:column; align-items:stretch;">' +
-          '<div style="display:flex; align-items:center; gap:12px;">' +
-            '<div class="player-card__info">' +
-              '<div class="player-card__name">' + arrivalDot + ' ' + esc(p.name) + '</div>' +
-              '<div class="player-card__meta">' +
-                skillBadge(p.skill_level) +
-                statusBadge +
-                '<span>' + formatTime(p.arrived_at || p.created_at) + '</span>' +
+        let playBtn, pauseBtn, stopBtn;
+        if (isPlaying) {
+          // Playing: Play is active (green), Pause & Stop are available but not for viewers on playing players
+          playBtn = tBtn('play-fill', 'Playing', true, null, 'var(--color-primary)');
+          pauseBtn = tBtn('pause-fill', 'Pause', false, null);
+          stopBtn = tBtn('stop-fill', 'Stop', false, null);
+        } else if (isWaiting) {
+          // Waiting/rested: Play is active (green = in queue), Pause & Stop clickable
+          playBtn = tBtn('play-fill', 'In queue', true, null, 'var(--color-primary)');
+          pauseBtn = tBtn('pause-fill', 'Take a break', false, "setPlayerStatus(" + p.id + ",'break')");
+          stopBtn = tBtn('stop-fill', 'Leaving', false, "setPlayerStatus(" + p.id + ",'left_early')");
+        } else if (isBreak) {
+          // On break: Pause is active (amber), Play & Stop clickable
+          playBtn = tBtn('play-fill', 'Back in queue', false, "setPlayerStatus(" + p.id + ",'waiting')");
+          pauseBtn = tBtn('pause-fill', 'On break', true, null, '#D97706');
+          stopBtn = tBtn('stop-fill', 'Leaving', false, "setPlayerStatus(" + p.id + ",'left_early')");
+        } else if (isLeft) {
+          // Left/skipped: Stop is active (red), Play clickable to return
+          playBtn = tBtn('play-fill', 'Back in queue', false, "setPlayerStatus(" + p.id + ",'waiting')");
+          pauseBtn = tBtn('pause-fill', 'Pause', false, null);
+          stopBtn = tBtn('stop-fill', 'Left', true, null, 'var(--color-danger)');
+        } else {
+          // Fallback (absent etc)
+          playBtn = tBtn('play-fill', 'Play', false, null);
+          pauseBtn = tBtn('pause-fill', 'Pause', false, null);
+          stopBtn = tBtn('stop-fill', 'Stop', false, null);
+        }
+
+        html += '<div class="player-card" style="display:flex; align-items:center; gap:12px; padding:10px 14px;">' +
+            '<div style="flex:1; min-width:0;">' +
+              '<div class="player-card__name" style="display:flex; align-items:center; gap:6px;">' +
+                skillBadge(p.skill_level) + ' ' + esc(p.name) +
               '</div>' +
+              '<div style="font-size:var(--text-xs); color:var(--text-muted); margin-top:2px;">' + arrivalTime + '</div>' +
             '</div>' +
-            '<div class="player-card__stats">' +
-              '<div class="player-card__wl"><span class="record-w">' + (p.wins || 0) + '</span>-<span class="record-l">' + (p.losses || 0) + '</span></div>' +
-              '<div class="player-card__games">' + (p.games_played || 0) + ' games</div>' +
+            '<div style="display:flex; gap:4px; flex-shrink:0;">' +
+              playBtn + pauseBtn + stopBtn +
             '</div>' +
-          '</div>' +
-          actionBar +
         '</div>';
       }
       html += '</div>';
