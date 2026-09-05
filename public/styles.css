@@ -8,13 +8,13 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  /* Brand */
-  --green-900: #0D5C35;
-  --green-700: #1A8F55;
-  --green-500: #2BC47A;
-  --green-300: #7DDBA3;
-  --green-100: #D6F5E3;
-  --green-50:  #EDFAF2;
+  /* Brand — matched to logo3.webp emerald palette */
+  --green-900: #065F46;
+  --green-700: #018A60;
+  --green-500: #10B981;
+  --green-300: #6EE7B7;
+  --green-100: #D1FAE5;
+  --green-50:  #ECFDF5;
 
   --coral-600: #C94535;
   --coral-500: #E85D4A;
@@ -82,14 +82,14 @@
 /* ---------- Dark mode ---------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-page:     #0F1A14;
-    --bg-card:     #1A2820;
-    --bg-nav:      #152019;
-    --text-primary:   #E8F0EB;
-    --text-secondary: #A3B5AB;
-    --text-muted:     #7A8E83;
-    --border:         #2A3E32;
-    --border-subtle:  #1F3028;
+    --bg-page:     #0F172A;
+    --bg-card:     #1E293B;
+    --bg-nav:      #1E293B;
+    --text-primary:   #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-muted:     #64748B;
+    --border:         #334155;
+    --border-subtle:  #1E293B;
 
     --color-primary:      var(--green-500);
     --color-primary-hover: var(--green-300);
@@ -100,14 +100,14 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg-page:     #0F1A14;
-  --bg-card:     #1A2820;
-  --bg-nav:      #152019;
-  --text-primary:   #E8F0EB;
-  --text-secondary: #A3B5AB;
-  --text-muted:     #7A8E83;
-  --border:         #2A3E32;
-  --border-subtle:  #1F3028;
+  --bg-page:     #0F172A;
+  --bg-card:     #1E293B;
+  --bg-nav:      #1E293B;
+  --text-primary:   #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+  --border:         #334155;
+  --border-subtle:  #1E293B;
 
   --color-primary:      var(--green-500);
   --color-primary-hover: var(--green-300);

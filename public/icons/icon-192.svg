@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="28" fill="#1A8F55"/>
+  <rect width="192" height="192" rx="28" fill="#018A60"/>
   <!-- BBQ skewer (diagonal stick) -->
   <line x1="52" y1="148" x2="145" y2="42" stroke="#C4985A" stroke-width="5" stroke-linecap="round"/>
   <line x1="52" y1="148" x2="145" y2="42" stroke="#D4A843" stroke-width="3" stroke-linecap="round"/>
@@ -13,7 +13,7 @@
   <path d="M74,106 Q66,88 72,66 Q82,80 84,100 Z" fill="#FFFFFF" opacity="0.75"/>
   <path d="M92,96 Q100,74 118,64 Q112,84 104,98 Z" fill="#FFFFFF" opacity="0.68"/>
   <!-- Cork ring detail -->
-  <ellipse cx="88" cy="110" rx="8" ry="9" fill="none" stroke="#1A8F55" stroke-width="1.5" opacity="0.4" transform="rotate(-40, 88, 110)"/>
+  <ellipse cx="88" cy="110" rx="8" ry="9" fill="none" stroke="#018A60" stroke-width="1.5" opacity="0.4" transform="rotate(-40, 88, 110)"/>
   <!-- BBQ text -->
   <text x="96" y="172" text-anchor="middle" font-family="'Plus Jakarta Sans',system-ui,sans-serif" font-size="26" font-weight="800" fill="#FFFFFF" letter-spacing="2">BBQ</text>
 </svg>
