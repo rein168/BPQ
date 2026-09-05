@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BBQ - Join Game</title>
+  <title>BBQ - Register</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#018A60" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -139,7 +139,7 @@
       <img src="/icons/logo.webp" alt="BBQ" width="34" height="34" style="border-radius:7px;" />
       <span>BBQ</span>
     </a>
-    <div class="bbq-topnav__title">Join Game</div>
+    <div class="bbq-topnav__title">Register</div>
     <div class="bbq-topnav__actions"></div>
   </nav>
 
@@ -165,7 +165,7 @@
     <div id="registerState" style="display:none;">
       <div class="join-hero">
         <img src="/icons/logo.webp" alt="BBQ" width="64" height="64" style="border-radius:14px;" />
-        <h1>Join BBQ</h1>
+        <h1>Register</h1>
         <div class="session-name" id="sessionNameDisplay"></div>
       </div>
 
@@ -184,28 +184,13 @@
             <option value="Intermediate">Intermediate</option>
           </select>
         </div>
-        <!-- +1 Guest toggle -->
-        <div style="margin-bottom:12px;">
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:var(--text-sm); color:var(--text-secondary);">
-            <input type="checkbox" id="plusOneToggle" onchange="togglePlusOne()" style="width:18px; height:18px; accent-color:var(--color-primary);" />
-            <span><i class="bi bi-person-plus"></i> Bringing a +1 guest</span>
-          </label>
-        </div>
-        <div id="plusOneFields" style="display:none; margin-bottom:12px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius-md); background:var(--bg-page);">
-          <div class="join-form-group" style="margin-bottom:8px;">
-            <label for="guestName">Guest Name</label>
-            <input type="text" id="guestName" class="join-input" placeholder="Enter guest's name" maxlength="100" />
-          </div>
-          <div class="join-form-group" style="margin-bottom:0;">
-            <label for="guestSkill">Guest Skill Level</label>
-            <select id="guestSkill" class="join-select">
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" class="btn-bbq btn-bbq-primary join-btn">
-          <i class="bi bi-person-plus-fill"></i> Join Game
+        <!-- +1 Guests -->
+        <div id="guestsContainer"></div>
+        <button type="button" class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="addGuest()" style="margin-bottom:12px; width:100%;">
+          <i class="bi bi-person-plus"></i> +1 Guest
+        </button>
+        <button type="submit" class="btn-bbq btn-bbq-primary join-btn" id="joinBtn">
+          <i class="bi bi-person-plus-fill"></i> Register
         </button>
       </form>
 
@@ -288,6 +273,15 @@
         document.getElementById('sessionLink').href = '/session/' + sessionId;
         document.getElementById('sessionLinkExisting').href = '/session/' + sessionId;
 
+        // Set button text with game date
+        if (session.game_date) {
+          try {
+            const d = new Date(session.game_date + 'T00:00:00');
+            const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+            document.getElementById('joinBtn').innerHTML = '<i class="bi bi-person-plus-fill"></i> Will Join ' + esc(dateStr) + ' Game';
+          } catch { /* keep default */ }
+        }
+
         // Check if already registered
         const existing = getRegisteredPlayer();
         if (existing) {
@@ -311,12 +305,35 @@
       }
     }
 
-    // +1 Guest toggle
-    function togglePlusOne() {
-      const fields = document.getElementById('plusOneFields');
-      const checked = document.getElementById('plusOneToggle').checked;
-      fields.style.display = checked ? '' : 'none';
-      if (!checked) document.getElementById('guestName').value = '';
+    // +1 Guest management
+    let guestCount = 0;
+    function addGuest() {
+      guestCount++;
+      const container = document.getElementById('guestsContainer');
+      const guestId = 'guest-' + guestCount;
+      const div = document.createElement('div');
+      div.id = guestId;
+      div.style.cssText = 'margin-bottom:12px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius-md); background:var(--bg-page);';
+      div.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+          '<span style="font-family:var(--font-heading); font-weight:600; font-size:var(--text-sm); color:var(--text-secondary);"><i class="bi bi-person-plus"></i> +1 GUEST</span>' +
+          '<button type="button" class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="removeGuest(\'' + guestId + '\')" style="padding:2px 6px; color:var(--color-danger);"><i class="bi bi-x-lg"></i></button>' +
+        '</div>' +
+        '<div class="join-form-group" style="margin-bottom:8px;">' +
+          '<input type="text" class="join-input guest-name" placeholder="Guest name" maxlength="100" />' +
+        '</div>' +
+        '<div class="join-form-group" style="margin-bottom:0;">' +
+          '<select class="join-select guest-skill">' +
+            '<option value="Beginner">Beginner</option>' +
+            '<option value="Intermediate">Intermediate</option>' +
+          '</select>' +
+        '</div>';
+      container.appendChild(div);
+    }
+
+    function removeGuest(guestId) {
+      const el = document.getElementById(guestId);
+      if (el) el.remove();
     }
 
     // Submit registration
@@ -333,15 +350,19 @@
         return;
       }
 
-      // Check +1 guest
-      const hasPlusOne = document.getElementById('plusOneToggle').checked;
-      let guestName = '';
-      let guestSkill = '';
-      if (hasPlusOne) {
-        guestName = document.getElementById('guestName').value.trim();
-        guestSkill = document.getElementById('guestSkill').value;
-        if (!guestName) {
-          errorEl.textContent = 'Please enter your guest\'s name.';
+      // Collect guests
+      const guests = [];
+      document.querySelectorAll('#guestsContainer > div').forEach(div => {
+        const gName = div.querySelector('.guest-name').value.trim();
+        const gSkill = div.querySelector('.guest-skill').value;
+        if (gName) guests.push({ name: gName, skillLevel: gSkill });
+      });
+
+      // Validate guest names
+      const emptyGuest = document.querySelectorAll('#guestsContainer .guest-name');
+      for (const input of emptyGuest) {
+        if (!input.value.trim()) {
+          errorEl.textContent = 'Please enter a name for each guest, or remove empty guests.';
           errorEl.style.display = 'block';
           return;
         }
@@ -365,28 +386,29 @@
         // Save to localStorage for re-visit detection
         saveRegisteredPlayer(data.playerId, name);
 
-        // Register guest if +1
-        let guestMsg = '';
-        if (hasPlusOne && guestName) {
+        // Register guests
+        const guestResults = [];
+        for (const guest of guests) {
           try {
-            const guestRes = await fetch('/api/players/register', {
+            const gRes = await fetch('/api/players/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionId: parseInt(sessionId), name: guestName, skillLevel: guestSkill })
+              body: JSON.stringify({ sessionId: parseInt(sessionId), name: guest.name, skillLevel: guest.skillLevel })
             });
-            const guestData = await guestRes.json();
-            if (guestRes.ok) {
-              guestMsg = ' Your guest ' + guestName + ' has also been added.';
-            } else {
-              guestMsg = ' Guest registration: ' + (guestData.error || 'failed.');
-            }
+            const gData = await gRes.json();
+            guestResults.push({ name: guest.name, ok: gRes.ok, error: gData.error });
           } catch {
-            guestMsg = ' Could not register guest.';
+            guestResults.push({ name: guest.name, ok: false, error: 'Network error' });
           }
         }
 
-        document.getElementById('successMessage').textContent =
-          name + ', you\'ve been added to the queue!' + guestMsg;
+        let msg = name + ', you\'ve been registered!';
+        const okGuests = guestResults.filter(g => g.ok);
+        const failGuests = guestResults.filter(g => !g.ok);
+        if (okGuests.length > 0) msg += ' ' + okGuests.map(g => g.name).join(', ') + ' also added.';
+        if (failGuests.length > 0) msg += ' Could not add: ' + failGuests.map(g => g.name + ' (' + g.error + ')').join(', ') + '.';
+
+        document.getElementById('successMessage').textContent = msg;
         showState('successState');
       } catch {
         errorEl.textContent = 'Network error. Please try again.';
