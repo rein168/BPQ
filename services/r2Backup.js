@@ -2,7 +2,7 @@
  * R2 Backup Service
  *
  * Syncs the local SQLite database file to Cloudflare R2 so it survives
- * Koyeb container restarts and redeployments.
+ * Northflank container restarts and redeployments.
  *
  * Flow:
  *   1. On startup → download DB from R2 if local file is missing (fresh container)

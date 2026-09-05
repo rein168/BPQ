@@ -40,7 +40,7 @@ const server = http.createServer(app);
 // CORS: same-origin by default, configurable for cross-origin dev/testing
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-  : undefined; // undefined = same-origin only (works on Koyeb out of the box)
+  : undefined; // undefined = same-origin only (works on Northflank out of the box)
 
 const io = new Server(server, {
   cors: corsOrigins ? { origin: corsOrigins } : undefined,
