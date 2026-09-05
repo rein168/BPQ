@@ -1341,9 +1341,13 @@
       const waitMin = Math.floor(waitMs / 60000);
       const waitStr = waitMin < 1 ? 'Just now' : waitMin + ' min waiting';
 
-      // Header color and label vary by status
+      // Header color and label vary by status and completeness
       let headerBg, statusLabel, statusIcon;
-      if (status === 'ready') {
+      if (!isFull) {
+        headerBg = 'var(--neutral-600)';
+        statusLabel = 'Looking for Players';
+        statusIcon = '<i class="bi bi-search"></i> ';
+      } else if (status === 'ready') {
         headerBg = 'var(--color-primary)';
         statusLabel = 'Get Ready';
         statusIcon = '<i class="bi bi-lightning-charge-fill"></i> ';
