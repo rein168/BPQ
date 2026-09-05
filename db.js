@@ -49,6 +49,7 @@ db.exec(`
     status TEXT DEFAULT 'waiting' CHECK(status IN ('waiting', 'playing', 'rested', 'break', 'skipped', 'absent', 'left_early')),
     position INTEGER,
     arrived_at INTEGER,
+    break_at INTEGER,
     created_at INTEGER DEFAULT (strftime('%s','now')*1000),
     FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
   )
@@ -123,6 +124,8 @@ const migrations = [
   'ALTER TABLE sessions ADD COLUMN court_count INTEGER DEFAULT 4',
   // Phase 8: Game date
   'ALTER TABLE sessions ADD COLUMN game_date TEXT',
+  // Phase 9: Break timestamp
+  'ALTER TABLE players ADD COLUMN break_at INTEGER',
 ];
 
 for (const sql of migrations) {

@@ -83,7 +83,7 @@ function prepareStatements() {
 
     // Player W/L record
     getPlayerWL: db.prepare(
-      `SELECT p.id, p.name, p.skill_level, p.status, p.arrived_at, p.created_at,
+      `SELECT p.id, p.name, p.skill_level, p.status, p.arrived_at, p.break_at, p.created_at,
               COUNT(CASE WHEN ((mp.team = 'A' AND mh.score_a > mh.score_b) OR (mp.team = 'B' AND mh.score_b > mh.score_a)) THEN 1 END) AS wins,
               COUNT(CASE WHEN ((mp.team = 'A' AND mh.score_a < mh.score_b) OR (mp.team = 'B' AND mh.score_b < mh.score_a)) THEN 1 END) AS losses,
               COUNT(CASE WHEN mp.match_history_id IS NOT NULL THEN 1 END) AS games_played
@@ -209,6 +209,15 @@ const sessionService = {
 
     const s = prepareStatements();
     s.updatePlayerStatus.run(newStatus, playerId);
+
+    // Track break timestamp
+    if (newStatus === 'break') {
+      db.prepare('UPDATE players SET break_at = ? WHERE id = ?').run(Date.now(), playerId);
+    } else if (player.status === 'break') {
+      // Clearing break — reset break_at
+      db.prepare('UPDATE players SET break_at = NULL WHERE id = ?').run(playerId);
+    }
+
     this.broadcastSessionState(sessionId);
   },
 
