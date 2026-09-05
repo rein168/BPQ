@@ -1305,7 +1305,7 @@
 
       let html = '<div class="batch-card" style="margin:0 0 12px; opacity:0.85;">';
       html += '<div style="background:var(--green-900); color:#fff; padding:10px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
-        '<span><i class="bi bi-geo-alt-fill"></i> ' + esc(courtName) + '</span>' +
+        '<span><i class="bi bi-geo-alt-fill"></i> Now on ' + esc(courtName) + '</span>' +
         '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">🏸 In Play</span>' +
       '</div>';
       html += timerHtml;
@@ -1359,9 +1359,11 @@
 
       let html = '<div class="batch-card" style="margin:0 0 12px;">';
 
-      // Court header
+      // Court header — prefix with "Next in" to distinguish from Courts tab
+      const courtLabel = courtName ? 'Next in ' + esc(courtName) : 'Court TBD';
+      const courtIcon = courtName ? '<i class="bi bi-geo-alt-fill"></i> ' : '<i class="bi bi-question-circle"></i> ';
       html += '<div style="background:' + headerBg + '; color:#fff; padding:10px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
-        '<span>' + (courtName ? '<i class="bi bi-geo-alt-fill"></i> ' + esc(courtName) : '<i class="bi bi-question-circle"></i> Court TBD') + '</span>' +
+        '<span>' + courtIcon + courtLabel + '</span>' +
         '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">' + statusIcon + statusLabel + '</span>' +
       '</div>';
 
