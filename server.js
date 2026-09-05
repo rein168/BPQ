@@ -103,9 +103,14 @@ app.get('/session/:sessionId', (req, res) => {
   res.render('session-queue');
 });
 
-// Player join page (QR code destination)
+// Player join page (Registration QR destination)
 app.get('/join/:sessionId', (req, res) => {
   res.render('join');
+});
+
+// Player arrival page (Arrival QR at venue on game night)
+app.get('/arrive/:sessionId', (req, res) => {
+  res.render('arrive');
 });
 
 // Socket.io handlers

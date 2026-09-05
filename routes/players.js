@@ -16,7 +16,7 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Name must be 1-100 characters' });
     }
 
-    const validSkills = ['Beginner', 'Intermediate'];
+    const validSkills = ['Beginner', 'Intermediate', 'Advanced'];
     if (!validSkills.includes(skillLevel)) {
       return res.status(400).json({ error: 'Invalid skill level' });
     }
@@ -53,8 +53,8 @@ router.post('/checkin', (req, res) => {
     if (!sessionId || !playerId) {
       return res.status(400).json({ error: 'Session ID and player ID required' });
     }
-    sessionService.checkInPlayer(playerId, sessionId);
-    res.json({ success: true });
+    const result = sessionService.checkInPlayer(playerId, sessionId);
+    res.json({ success: true, ...result });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -74,7 +74,7 @@ router.post('/import', requireHost, (req, res) => {
     }
 
     // Validate skill levels and input lengths
-    const validSkills = ['Beginner', 'Intermediate'];
+    const validSkills = ['Beginner', 'Intermediate', 'Advanced'];
     for (const player of players) {
       if (!player.name || typeof player.name !== 'string') {
         return res.status(400).json({ error: 'Invalid player data' });
@@ -110,7 +110,7 @@ router.get('/session/:sessionId', (req, res) => {
 router.put('/:playerId/skill', requireHost, (req, res) => {
   try {
     const { skillLevel } = req.body;
-    if (!['Beginner', 'Intermediate'].includes(skillLevel)) {
+    if (!['Beginner', 'Intermediate', 'Advanced'].includes(skillLevel)) {
       return res.status(400).json({ error: 'Invalid skill level' });
     }
     sessionService.updatePlayerSkill(req.params.playerId, skillLevel);

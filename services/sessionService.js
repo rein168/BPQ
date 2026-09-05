@@ -164,25 +164,57 @@ const sessionService = {
   },
 
   // Self-registration: player joins via QR code / link
+  // arrived_at is left NULL — player is RSVP'd but not yet present
+  // They become queue-eligible only after checking in via Arrival QR
   registerPlayer(sessionId, name, skillLevel) {
     const s = prepareStatements();
-    const now = Date.now();
     // Get next position
     const players = s.getSessionPlayers.all(sessionId);
     const nextPos = players.length + 1;
-    const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, now);
-    this.tryAutoAllocate(sessionId);
+    const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, null);
     this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
   },
 
-  // Check-in: update arrived_at timestamp (re-scan QR at venue)
+  // Check-in: update arrived_at timestamp (Arrival QR at venue)
+  // Returns arrival position and stats for the arrival page
   checkInPlayer(playerId, sessionId) {
     const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
     if (!player) throw new Error('Player not found in this session');
-    // Update arrived_at if not already set, or update to now (re-arrival)
-    db.prepare('UPDATE players SET arrived_at = ? WHERE id = ?').run(Date.now(), playerId);
+
+    const allPlayers = this.getSessionPlayers(sessionId);
+    const totalRsvp = allPlayers.length;
+    const alreadyCheckedIn = player.arrived_at != null;
+
+    if (!alreadyCheckedIn) {
+      db.prepare('UPDATE players SET arrived_at = ? WHERE id = ?').run(Date.now(), playerId);
+    }
+
+    // Count arrived players and determine arrival order
+    const arrivedPlayers = allPlayers
+      .filter(p => p.arrived_at != null || p.id === playerId)
+      .sort((a, b) => (a.arrived_at || Infinity) - (b.arrived_at || Infinity));
+    const arrivalPosition = arrivedPlayers.findIndex(p => p.id === playerId) + 1;
+    const totalArrived = arrivedPlayers.length;
+
+    // Early birds: first 3 arrivals
+    const earlyBirds = arrivedPlayers.slice(0, 3).map((p, i) => ({
+      name: p.name,
+      badge: ['🥇', '🥈', '🥉'][i],
+      position: i + 1,
+    }));
+
+    this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
+
+    return {
+      alreadyCheckedIn,
+      arrivalPosition,
+      totalArrived,
+      totalRsvp,
+      earlyBirds,
+      playerName: player.name,
+    };
   },
 
   // Get players with W/L records and games played (for queue display)

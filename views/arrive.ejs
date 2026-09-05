@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBQ - Check In</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#018A60" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BBQ" />
+  <link rel="apple-touch-icon" href="/icons/logo.webp" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .arrive-page {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      min-height: calc(100vh - var(--nav-height));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .arrive-hero {
+      text-align: center;
+      padding: 24px 0 20px;
+    }
+    .arrive-hero h1 {
+      font-size: var(--text-2xl);
+      color: var(--color-primary);
+      margin-bottom: 4px;
+    }
+    .arrive-hero .session-name {
+      font-size: var(--text-lg);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .arrive-number {
+      font-size: 72px;
+      font-weight: 800;
+      color: var(--color-primary);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-heading);
+    }
+    .arrive-label {
+      font-size: var(--text-md);
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .arrive-counter {
+      text-align: center;
+      padding: 20px;
+      margin: 16px 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+    }
+    .arrive-progress {
+      margin-top: 12px;
+      height: 8px;
+      background: var(--neutral-200);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .arrive-progress-bar {
+      height: 100%;
+      background: var(--color-primary);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .arrive-progress-text {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .early-birds {
+      width: 100%;
+      margin: 16px 0;
+    }
+    .early-birds__title {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .early-bird-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: 6px;
+    }
+    .early-bird-row.is-you {
+      border-color: var(--color-primary);
+      background: var(--green-50);
+    }
+    .early-bird-badge {
+      font-size: 24px;
+      line-height: 1;
+    }
+    .early-bird-name {
+      font-weight: 600;
+      font-size: var(--text-md);
+      flex: 1;
+    }
+    .early-bird-you {
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--color-primary);
+      background: var(--green-100);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+    }
+    .arrive-checkin-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: var(--text-xl);
+      margin: 16px 0;
+    }
+    .arrive-error {
+      background: var(--coral-100);
+      color: var(--coral-600);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      margin-bottom: 12px;
+      display: none;
+      width: 100%;
+    }
+    .confetti {
+      font-size: 28px;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes pulseNumber {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .arrive-number.animate {
+      animation: pulseNumber 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Nav -->
+  <nav class="bbq-topnav">
+    <a href="/" class="bbq-topnav__logo">
+      <img src="/icons/logo.webp" alt="BBQ" width="34" height="34" style="border-radius:7px;" />
+      <span>BBQ</span>
+    </a>
+    <div class="bbq-topnav__title">Check In</div>
+    <div class="bbq-topnav__actions"></div>
+  </nav>
+
+  <main class="arrive-page">
+    <!-- Loading -->
+    <div id="loadingState">
+      <div class="empty-state">
+        <i class="bi bi-hourglass-split"></i>
+        <p>Loading...</p>
+      </div>
+    </div>
+
+    <!-- Not found -->
+    <div id="notFoundState" style="display:none;">
+      <div class="empty-state">
+        <i class="bi bi-exclamation-triangle"></i>
+        <p>Game not found or has ended.</p>
+        <a href="/" class="btn-bbq btn-bbq-primary" style="margin-top:12px;">Back to Home</a>
+      </div>
+    </div>
+
+    <!-- Not registered — redirect to join -->
+    <div id="notRegisteredState" style="display:none;">
+      <div class="empty-state">
+        <i class="bi bi-person-x"></i>
+        <p>You haven't registered for this game yet.</p>
+        <a id="registerLink" href="#" class="btn-bbq btn-bbq-primary" style="margin-top:12px;">
+          <i class="bi bi-person-plus"></i> Register First
+        </a>
+      </div>
+    </div>
+
+    <!-- Check-in prompt -->
+    <div id="checkinState" style="display:none; width:100%;">
+      <div class="arrive-hero">
+        <img src="/icons/logo.webp" alt="BBQ" width="64" height="64" style="border-radius:14px;" />
+        <h1 id="sessionNameCheckin"></h1>
+      </div>
+      <div style="text-align:center; margin-bottom:12px;">
+        <p style="font-size:var(--text-lg); color:var(--text-primary);">Welcome, <strong id="playerNameCheckin"></strong>!</p>
+        <p style="font-size:var(--text-sm); color:var(--text-muted);">Tap below to confirm you're here.</p>
+      </div>
+      <div id="checkinError" class="arrive-error"></div>
+      <button class="btn-bbq btn-bbq-primary arrive-checkin-btn" onclick="doCheckin()">
+        <i class="bi bi-geo-alt-fill"></i> I'm Here!
+      </button>
+      <div id="arrivalStats" class="arrive-counter">
+        <div class="arrive-progress-text">
+          <strong id="preArrived">0</strong> of <strong id="preTotal">0</strong> have arrived
+        </div>
+        <div class="arrive-progress">
+          <div class="arrive-progress-bar" id="preProgressBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Checked in — success -->
+    <div id="arrivedState" style="display:none; width:100%;">
+      <div class="arrive-hero">
+        <img src="/icons/logo.webp" alt="BBQ" width="56" height="56" style="border-radius:12px;" />
+        <h1 id="sessionNameArrived"></h1>
+      </div>
+
+      <div class="arrive-counter">
+        <div style="margin-bottom:4px;">
+          <span class="confetti" id="arrivalEmoji">🎉</span>
+        </div>
+        <div class="arrive-number animate" id="arrivalNumber">—</div>
+        <div class="arrive-label" id="arrivalLabel">to arrive</div>
+        <div class="arrive-progress" style="margin-top:16px;">
+          <div class="arrive-progress-bar" id="progressBar" style="width:0%"></div>
+        </div>
+        <div class="arrive-progress-text">
+          <strong id="arrivedCount">0</strong> of <strong id="totalCount">0</strong> RSVP'd have arrived
+        </div>
+      </div>
+
+      <!-- Early Birds -->
+      <div class="early-birds" id="earlyBirdsSection" style="display:none;">
+        <div class="early-birds__title"><i class="bi bi-alarm"></i> Early Birds</div>
+        <div id="earlyBirdsList"></div>
+      </div>
+
+      <a id="viewGameLink" href="#" class="btn-bbq btn-bbq-primary" style="width:100%; margin-top:16px;">
+        <i class="bi bi-eye"></i> View Game
+      </a>
+    </div>
+  </main>
+
+  <script>
+    const sessionId = window.location.pathname.split('/')[2];
+
+    function esc(str) {
+      if (str == null) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function showState(stateId) {
+      ['loadingState', 'notFoundState', 'notRegisteredState', 'checkinState', 'arrivedState']
+        .forEach(id => document.getElementById(id).style.display = 'none');
+      document.getElementById(stateId).style.display = stateId === 'loadingState' || stateId === 'notFoundState' || stateId === 'notRegisteredState' ? '' : 'flex';
+      // For states with width:100%, use flex column
+      if (stateId === 'checkinState' || stateId === 'arrivedState') {
+        const el = document.getElementById(stateId);
+        el.style.display = '';
+        el.style.width = '100%';
+      }
+    }
+
+    function getRegisteredPlayer() {
+      try {
+        const data = localStorage.getItem('bbq_player_' + sessionId);
+        return data ? JSON.parse(data) : null;
+      } catch { return null; }
+    }
+
+    async function init() {
+      try {
+        const response = await fetch('/api/sessions/' + sessionId);
+        if (!response.ok) { showState('notFoundState'); return; }
+        const data = await response.json();
+        const session = data.session;
+
+        if (session.status === 'ended') { showState('notFoundState'); return; }
+
+        document.getElementById('registerLink').href = '/join/' + sessionId;
+        document.getElementById('viewGameLink').href = '/session/' + sessionId;
+
+        // Check if registered
+        const existing = getRegisteredPlayer();
+        if (!existing) {
+          showState('notRegisteredState');
+          return;
+        }
+
+        // Get current arrival stats
+        const playersRes = await fetch('/api/players/session/' + sessionId);
+        const playersData = await playersRes.json();
+        const allPlayers = playersData.players || [];
+        const arrived = allPlayers.filter(p => p.arrived_at != null);
+        const player = allPlayers.find(p => p.id === existing.playerId);
+
+        if (!player) {
+          showState('notRegisteredState');
+          return;
+        }
+
+        // Already checked in?
+        if (player.arrived_at) {
+          // Show arrived state directly
+          const arrivalOrder = arrived
+            .sort((a, b) => a.arrived_at - b.arrived_at);
+          const pos = arrivalOrder.findIndex(p => p.id === existing.playerId) + 1;
+          const earlyBirds = arrivalOrder.slice(0, 3).map((p, i) => ({
+            name: p.name,
+            badge: ['🥇', '🥈', '🥉'][i],
+            position: i + 1,
+          }));
+          showArrivedState(session.name, pos, arrived.length, allPlayers.length, earlyBirds, existing.name);
+        } else {
+          // Show check-in prompt
+          document.getElementById('sessionNameCheckin').textContent = session.name;
+          document.getElementById('playerNameCheckin').textContent = existing.name;
+          document.getElementById('preArrived').textContent = arrived.length;
+          document.getElementById('preTotal').textContent = allPlayers.length;
+          const pct = allPlayers.length > 0 ? Math.round((arrived.length / allPlayers.length) * 100) : 0;
+          document.getElementById('preProgressBar').style.width = pct + '%';
+          showState('checkinState');
+        }
+      } catch {
+        showState('notFoundState');
+      }
+    }
+
+    async function doCheckin() {
+      const existing = getRegisteredPlayer();
+      if (!existing) return;
+
+      const errorEl = document.getElementById('checkinError');
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/players/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), playerId: existing.playerId })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Check-in failed.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Fetch session name
+        const sessRes = await fetch('/api/sessions/' + sessionId);
+        const sessData = await sessRes.json();
+        const sessionName = sessData.session ? sessData.session.name : '';
+
+        showArrivedState(
+          sessionName,
+          data.arrivalPosition,
+          data.totalArrived,
+          data.totalRsvp,
+          data.earlyBirds,
+          existing.name
+        );
+      } catch {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    function showArrivedState(sessionName, position, totalArrived, totalRsvp, earlyBirds, playerName) {
+      document.getElementById('sessionNameArrived').textContent = sessionName;
+      document.getElementById('arrivalNumber').textContent = '#' + position;
+      document.getElementById('viewGameLink').href = '/session/' + sessionId;
+
+      // Emoji based on position
+      let emoji = '🎉';
+      let label = 'to arrive';
+      if (position === 1) { emoji = '🥇'; label = '1st to arrive!'; }
+      else if (position === 2) { emoji = '🥈'; label = '2nd to arrive!'; }
+      else if (position === 3) { emoji = '🥉'; label = '3rd to arrive!'; }
+      else { label = ordinal(position) + ' to arrive'; }
+
+      document.getElementById('arrivalEmoji').textContent = emoji;
+      document.getElementById('arrivalLabel').textContent = label;
+
+      // Progress bar
+      document.getElementById('arrivedCount').textContent = totalArrived;
+      document.getElementById('totalCount').textContent = totalRsvp;
+      const pct = totalRsvp > 0 ? Math.round((totalArrived / totalRsvp) * 100) : 0;
+      document.getElementById('progressBar').style.width = pct + '%';
+
+      // Early birds
+      if (earlyBirds && earlyBirds.length > 0) {
+        const section = document.getElementById('earlyBirdsSection');
+        section.style.display = '';
+        let html = '';
+        for (const bird of earlyBirds) {
+          const isYou = bird.name.toLowerCase() === playerName.toLowerCase();
+          html += '<div class="early-bird-row' + (isYou ? ' is-you' : '') + '">' +
+            '<span class="early-bird-badge">' + bird.badge + '</span>' +
+            '<span class="early-bird-name">' + esc(bird.name) + '</span>' +
+            (isYou ? '<span class="early-bird-you">YOU!</span>' : '') +
+          '</div>';
+        }
+        document.getElementById('earlyBirdsList').innerHTML = html;
+      }
+
+      showState('arrivedState');
+    }
+
+    function ordinal(n) {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    init();
+  </script>
+</body>
+</html>

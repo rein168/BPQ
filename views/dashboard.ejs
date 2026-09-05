@@ -176,13 +176,13 @@
   <div id="qrOverlay" class="qr-overlay" onclick="if(event.target===this)hideQrModal()">
     <div class="bbq-card qr-modal">
       <div class="bbq-card__header">
-        <i class="bi bi-qr-code"></i> RSVP Link
+        <i class="bi bi-qr-code"></i> <span id="qrModalTitle">RSVP Link</span>
         <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="hideQrModal()" style="margin-left:auto; color:#fff; padding:4px 8px;">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
       <div class="bbq-card__body qr-modal__body">
-        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin:0; text-align:center;">
+        <p id="qrModalDesc" style="font-size:var(--text-sm); color:var(--text-secondary); margin:0; text-align:center;">
           Share this QR code so players can register before game day.
         </p>
         <div id="qrcode-rsvp"></div>
@@ -286,7 +286,8 @@
           '</a>' +
           '<div class="session-card__actions">' +
             (session.status === 'active'
-              ? '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ')" title="RSVP QR" style="padding:4px 6px; font-size:24px; line-height:1;"><i class="bi bi-qr-code"></i></button>'
+              ? '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'register\')" title="Registration QR" style="padding:4px 6px; font-size:20px; line-height:1;"><i class="bi bi-person-plus"></i></button>' +
+                '<button class="btn-bbq btn-bbq-ghost" onclick="event.stopPropagation(); showQrModal(' + session.id + ',\'arrive\')" title="Arrival QR" style="padding:4px 6px; font-size:20px; line-height:1;"><i class="bi bi-geo-alt-fill"></i></button>'
               : '') +
             '<span class="session-status session-status-' + session.status + '">' +
               session.status.charAt(0).toUpperCase() + session.status.slice(1) +
@@ -297,12 +298,25 @@
     }
 
     // QR Modal
-    function showQrModal(sessionId) {
+    let activeQrType = 'register';
+    function showQrModal(sessionId, type) {
       activeQrSessionId = sessionId;
+      activeQrType = type || 'register';
       const overlay = document.getElementById('qrOverlay');
       overlay.style.display = 'flex';
-      const url = window.location.origin + '/join/' + sessionId;
+
+      const path = activeQrType === 'arrive' ? '/arrive/' : '/join/';
+      const url = window.location.origin + path + sessionId;
       document.getElementById('qrUrl').textContent = url;
+
+      // Update modal title and description
+      if (activeQrType === 'arrive') {
+        document.getElementById('qrModalTitle').textContent = 'Arrival Check-In';
+        document.getElementById('qrModalDesc').textContent = 'Display this QR at the venue. Players scan to confirm they\'re here.';
+      } else {
+        document.getElementById('qrModalTitle').textContent = 'Registration Link';
+        document.getElementById('qrModalDesc').textContent = 'Share this QR code so players can register before game day.';
+      }
 
       const container = document.getElementById('qrcode-rsvp');
       container.innerHTML = '';
@@ -329,7 +343,8 @@
 
     function copyQrLink() {
       if (!activeQrSessionId) return;
-      const url = window.location.origin + '/join/' + activeQrSessionId;
+      const path = activeQrType === 'arrive' ? '/arrive/' : '/join/';
+      const url = window.location.origin + path + activeQrSessionId;
       navigator.clipboard.writeText(url).then(() => {
         const btn = event.target.closest('button');
         const origHTML = btn.innerHTML;
