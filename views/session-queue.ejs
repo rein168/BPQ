@@ -349,9 +349,8 @@
   <nav class="bbq-topnav">
     <a href="/" class="bbq-topnav__logo">
       <img src="/icons/logo.webp" alt="BBQ" width="34" height="34" />
-      <span>BBQ</span>
     </a>
-    <div class="bbq-topnav__title" id="sessionName">Loading...</div>
+    <div class="bbq-topnav__title" id="sessionName" style="flex:1; text-align:center;">Loading...</div>
     <div class="bbq-topnav__actions">
       <button class="btn-bbq btn-bbq-ghost" onclick="showQrModal()" title="Arrival QR Code" style="padding:4px 6px; font-size:28px; line-height:1;">
         <i class="bi bi-qr-code"></i>
@@ -1174,9 +1173,22 @@
         filtered = allPlayers.filter(p => p.status === 'left_early');
       }
 
+      // Build a map of player_id -> court name from courts data
+      const playerCourtMap = {};
+      if (sessionState && sessionState.courts) {
+        for (const c of sessionState.courts) {
+          if (c.match && c.match.players) {
+            for (const mp of c.match.players) {
+              playerCourtMap[mp.player_id] = c.court.name;
+            }
+          }
+        }
+      }
+
       let html = '<div class="player-grid">';
       for (const p of filtered) {
         const arrivalTime = p.arrived_at ? formatTime(p.arrived_at) : 'Not arrived';
+        const courtInfo = playerCourtMap[p.id] ? ' · ' + playerCourtMap[p.id] : '';
 
         // Transport control buttons: ▶ Play, ⏸ Pause, ⏹ Stop
         // The active state button gets a green background to show current status
@@ -1228,7 +1240,7 @@
               '<div class="player-card__name" style="display:flex; align-items:center; gap:6px;">' +
                 skillBadge(p.skill_level) + ' ' + esc(p.name) +
               '</div>' +
-              '<div style="font-size:var(--text-xs); color:var(--text-muted); margin-top:2px;">' + arrivalTime + '</div>' +
+              '<div style="font-size:var(--text-xs); color:var(--text-muted); margin-top:2px;">' + arrivalTime + courtInfo + '</div>' +
             '</div>' +
             '<div style="display:flex; gap:4px; flex-shrink:0;">' +
               playBtn + pauseBtn + stopBtn +
@@ -1374,8 +1386,13 @@
       const pos = posMap ? (posMap[p.id] || '?') : '';
       const games = p.games_played || 0;
       const posHtml = pos ? '<span style="font-size:var(--text-xs); color:var(--text-muted); font-weight:700; min-width:20px; font-variant-numeric:tabular-nums;">#' + pos + '</span>' : '';
+      // Status icon: playing = play, break = pause
+      let statusIcon = '';
+      if (p.status === 'playing') statusIcon = '<i class="bi bi-play-fill" style="color:var(--color-primary); font-size:14px;"></i> ';
+      else if (p.status === 'break') statusIcon = '<i class="bi bi-pause-fill" style="color:#D97706; font-size:14px;"></i> ';
       return '<div class="match-player-row" style="display:flex; align-items:center; gap:6px;">' +
         posHtml +
+        statusIcon +
         skillBadge(p.skill_level) +
         '<span style="flex:1;">' + esc(p.name) + '</span>' +
         '<span style="font-size:var(--text-xs); color:var(--text-muted); font-variant-numeric:tabular-nums;" title="Games played">' + games + 'G</span>' +
