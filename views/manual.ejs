@@ -132,40 +132,22 @@
     <p>Filter pills at the top let you narrow the list: Registered, Arrived, Playing, Waiting, Break, Skipped, Left.</p>
 
     <h2 id="controls">Player controls</h2>
-    <p>Three buttons beside each player's name. The active button shows the player's current state.</p>
+    <p>Each player card has three buttons: <span class="icon-label" style="background:var(--color-primary); color:#fff;"><i class="bi bi-play-fill"></i></span> Play, <span class="icon-label" style="background:#D97706; color:#fff;"><i class="bi bi-pause-fill"></i></span> Pause, and <span class="icon-label" style="background:var(--color-danger); color:#fff;"><i class="bi bi-stop-fill"></i></span> Stop. The lit button shows the player's current state.</p>
 
-    <table style="width:100%; font-size:var(--text-sm); border-collapse:collapse; margin-bottom:12px;">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border); text-align:left;">
-          <th style="padding:6px 8px;">Button</th>
-          <th style="padding:6px 8px;">What it does</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:6px 8px;"><span class="icon-label" style="background:var(--color-primary); color:#fff;"><i class="bi bi-play-fill"></i></span></td>
-          <td style="padding:6px 8px; color:var(--text-secondary);">Player is in the queue or playing. Green when active.</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:6px 8px;"><span class="icon-label" style="background:#D97706; color:#fff;"><i class="bi bi-pause-fill"></i></span></td>
-          <td style="padding:6px 8px; color:var(--text-secondary);">On break. Removed from the queue until they unpause. Amber when active.</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:6px 8px;"><span class="icon-label" style="background:var(--color-danger); color:#fff;"><i class="bi bi-stop-fill"></i></span></td>
-          <td style="padding:6px 8px; color:var(--text-secondary);">Left the session. Red when active. Player is out of the queue for the rest of the night.</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:6px 8px;"><span class="icon-label"><i class="bi bi-fast-forward-fill"></i></span></td>
-          <td style="padding:6px 8px; color:var(--text-secondary);">Skip (host only). Moves a waiting player to the back of the queue.</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 8px;"><span class="icon-label"><i class="bi bi-rewind-fill"></i></span></td>
-          <td style="padding:6px 8px; color:var(--text-secondary);">Rewind (host only). Unskips a skipped player back into the queue.</td>
-        </tr>
-      </tbody>
-    </table>
+    <h3>What each button means</h3>
+    <ul>
+      <li><strong>Play (green)</strong> — player is in the queue or on a court.</li>
+      <li><strong>Pause (amber)</strong> — on break. Out of the queue until they tap Play again. Players can do this themselves.</li>
+      <li><strong>Stop (red)</strong> — left for the night. Out of the queue permanently. Only the host can stop another player.</li>
+    </ul>
 
-    <p>Players can pause and unpause themselves. Only the host can skip, rewind, or stop someone else.</p>
+    <h3>Host-only buttons</h3>
+    <p>Two extra buttons appear for the host in specific situations:</p>
+    <ul>
+      <li><span class="icon-label"><i class="bi bi-fast-forward-fill"></i></span> <strong>Skip</strong> — appears next to waiting players. Moves them to the back of the queue. Useful when someone stepped away without pausing.</li>
+      <li><span class="icon-label"><i class="bi bi-rewind-fill"></i></span> <strong>Rewind</strong> — appears next to skipped players. Puts them back in the queue at their original position.</li>
+    </ul>
+    <p>These buttons are hidden for regular players and only show when relevant.</p>
 
     <h2 id="host">Host actions</h2>
     <p>Enter the 4-digit PIN to unlock host controls. The host can:</p>
