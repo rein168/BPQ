@@ -1189,7 +1189,12 @@
 
       let batchIndex = 0;
 
-      // Assign batches to available courts first ("Get Ready")
+      // Show busy courts first ("In Play" — so players see what's happening)
+      for (const courtData of busyCourts) {
+        html += renderInPlayCard(courtData, players);
+      }
+
+      // Assign batches to available courts ("Get Ready")
       for (const courtData of availableCourts) {
         if (batchIndex >= batches.length) break;
         html += renderBatchCard(batches[batchIndex], courtData.court.name, batchIndex + 1, playersPerCourt, 'ready', positionMap);
@@ -1261,14 +1266,67 @@
       queueContainer.innerHTML = html;
     }
 
+    function skillBadge(level) {
+      if (level === 'Advanced') return '<span style="font-size:9px; font-weight:700; background:var(--coral-500); color:#fff; padding:1px 5px; border-radius:var(--radius-pill); letter-spacing:0.5px;">A</span>';
+      if (level === 'Intermediate') return '<span style="font-size:9px; font-weight:700; background:var(--color-primary); color:#fff; padding:1px 5px; border-radius:var(--radius-pill); letter-spacing:0.5px;">I</span>';
+      return '<span style="font-size:9px; font-weight:700; background:var(--neutral-400); color:#fff; padding:1px 5px; border-radius:var(--radius-pill); letter-spacing:0.5px;">B</span>';
+    }
+
     function renderPlayerRow(p, posMap) {
-      const pos = posMap[p.id] || '?';
+      const pos = posMap ? (posMap[p.id] || '?') : '';
       const games = p.games_played || 0;
+      const posHtml = pos ? '<span style="font-size:var(--text-xs); color:var(--text-muted); font-weight:700; min-width:20px; font-variant-numeric:tabular-nums;">#' + pos + '</span>' : '';
       return '<div class="match-player-row" style="display:flex; align-items:center; gap:6px;">' +
-        '<span style="font-size:var(--text-xs); color:var(--text-muted); font-weight:700; min-width:20px; font-variant-numeric:tabular-nums;">#' + pos + '</span>' +
+        posHtml +
+        skillBadge(p.skill_level) +
         '<span style="flex:1;">' + esc(p.name) + '</span>' +
         '<span style="font-size:var(--text-xs); color:var(--text-muted); font-variant-numeric:tabular-nums;" title="Games played">' + games + 'G</span>' +
       '</div>';
+    }
+
+    // Render an "In Play" card for a busy court in the queue view
+    function renderInPlayCard(courtData, players) {
+      const courtName = courtData.court.name;
+      const match = courtData.match;
+      const teamA = (match.players || []).filter(p => p.team === 'A');
+      const teamB = (match.players || []).filter(p => p.team === 'B');
+      const isStarted = !!match.match_started_at;
+
+      let timerHtml = '';
+      if (isStarted) {
+        const elapsed = Date.now() - match.match_started_at;
+        let timerClass = 'match-timer';
+        if (elapsed >= 20 * 60 * 1000) timerClass += ' match-timer--red';
+        else if (elapsed >= 15 * 60 * 1000) timerClass += ' match-timer--amber';
+        timerHtml = '<div class="' + timerClass + '" data-match-started="' + match.match_started_at + '" style="font-size:var(--text-lg); padding:4px 0;">' + formatTimer(elapsed) + '</div>';
+      } else {
+        timerHtml = '<div style="font-size:var(--text-xs); color:var(--text-muted); text-align:center; padding:4px 0;">Warming up</div>';
+      }
+
+      let html = '<div class="batch-card" style="margin:0 0 12px; opacity:0.85;">';
+      html += '<div style="background:var(--green-900); color:#fff; padding:10px 14px; font-family:var(--font-heading); font-weight:700; font-size:var(--text-md); display:flex; justify-content:space-between; align-items:center;">' +
+        '<span><i class="bi bi-geo-alt-fill"></i> ' + esc(courtName) + '</span>' +
+        '<span style="font-size:var(--text-xs); font-weight:600; background:rgba(255,255,255,0.2); padding:2px 10px; border-radius:var(--radius-pill);">🏸 In Play</span>' +
+      '</div>';
+      html += timerHtml;
+      html += '<div class="batch-card__body">';
+      html += '<div class="batch-card__team">' +
+          '<div class="batch-card__team-label" style="color:var(--green-700);">Team A</div>' +
+          teamA.map(r => {
+            const pl = players.find(p => p.id === r.player_id);
+            return pl ? renderPlayerRow(pl, null) : '';
+          }).join('') +
+        '</div>' +
+        '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted); padding:0 4px;">vs</div>' +
+        '<div class="batch-card__team">' +
+          '<div class="batch-card__team-label" style="color:var(--coral-500);">Team B</div>' +
+          teamB.map(r => {
+            const pl = players.find(p => p.id === r.player_id);
+            return pl ? renderPlayerRow(pl, null) : '';
+          }).join('') +
+        '</div>';
+      html += '</div></div>';
+      return html;
     }
 
     function renderBatchCard(batch, courtName, batchNum, playersPerCourt, status, posMap) {
@@ -1309,7 +1367,7 @@
 
       // Batch sub-header with wait timer
       html += '<div style="padding:6px 14px; font-size:var(--text-xs); color:var(--text-muted); border-bottom:1px solid var(--border-subtle); font-weight:600; display:flex; justify-content:space-between; align-items:center;">' +
-        '<span>Batch ' + batchNum + (isFull ? '' : ' — waiting for ' + (playersPerCourt - batch.length) + ' more') + '</span>' +
+        '<span>Batch ' + batchNum + (isFull ? '' : ' — need ' + (playersPerCourt - batch.length) + ' more for full court') + '</span>' +
         '<span style="font-variant-numeric:tabular-nums;"><i class="bi bi-stopwatch"></i> ' + waitStr + '</span>' +
       '</div>';
 
