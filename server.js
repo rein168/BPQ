@@ -123,6 +123,11 @@ app.get('/arrive/:sessionId', (req, res) => {
   res.render('arrive');
 });
 
+// Manual page
+app.get('/manual', (req, res) => {
+  res.render('manual');
+});
+
 // Socket.io handlers
 registerSocketHandlers(io);
 
