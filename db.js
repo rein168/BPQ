@@ -45,7 +45,7 @@ db.exec(`
     id INTEGER PRIMARY KEY,
     session_id INTEGER NOT NULL,
     name TEXT NOT NULL,
-    skill_level TEXT NOT NULL CHECK(skill_level IN ('Beginner', 'Intermediate')),
+    skill_level TEXT NOT NULL CHECK(skill_level IN ('Beginner', 'Intermediate', 'Advanced')),
     status TEXT DEFAULT 'waiting' CHECK(status IN ('waiting', 'playing', 'rested', 'break', 'skipped', 'absent', 'left_early')),
     position INTEGER,
     arrived_at INTEGER,
@@ -126,6 +126,9 @@ const migrations = [
   'ALTER TABLE sessions ADD COLUMN game_date TEXT',
   // Phase 9: Break timestamp
   'ALTER TABLE players ADD COLUMN break_at INTEGER',
+  // Phase 10: Skill mix preferences
+  "ALTER TABLE sessions ADD COLUMN mix_mode TEXT DEFAULT 'grouped'",
+  "ALTER TABLE players ADD COLUMN mix_preference TEXT DEFAULT 'same_level'",
 ];
 
 for (const sql of migrations) {

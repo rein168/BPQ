@@ -6,7 +6,7 @@ const { requireHost } = require('../middleware/auth');
 // Player self-registration (no auth — anyone with the link/QR)
 router.post('/register', (req, res) => {
   try {
-    const { sessionId, name, skillLevel } = req.body;
+    const { sessionId, name, skillLevel, mixPreference } = req.body;
     if (!sessionId || !name || !skillLevel) {
       return res.status(400).json({ error: 'Session ID, name, and skill level are required' });
     }
@@ -20,6 +20,9 @@ router.post('/register', (req, res) => {
     if (!validSkills.includes(skillLevel)) {
       return res.status(400).json({ error: 'Invalid skill level' });
     }
+
+    const validMixPrefs = ['same_level', 'mix_me_in'];
+    const mixPref = validMixPrefs.includes(mixPreference) ? mixPreference : 'same_level';
 
     // Check session exists and is active
     const session = sessionService.getSession(sessionId);
@@ -39,8 +42,29 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Game is full (' + maxPlayers + ' players max for ' + (maxPlayers / 8) + ' courts). Contact the host to add more courts.' });
     }
 
-    const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel);
+    const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel, mixPref);
     res.json({ success: true, playerId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Look up a player by name in a session (for arrival page on different device)
+router.post('/lookup', (req, res) => {
+  try {
+    const { sessionId, name } = req.body;
+    if (!sessionId || !name) {
+      return res.status(400).json({ error: 'Session ID and name required' });
+    }
+    const trimmedName = name.trim();
+    if (!trimmedName) return res.status(400).json({ error: 'Name required' });
+
+    const players = sessionService.getSessionPlayers(sessionId);
+    const match = players.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+    if (!match) {
+      return res.status(404).json({ error: 'No player with that name found. Did you register?' });
+    }
+    res.json({ success: true, playerId: match.id, name: match.name, arrived: match.arrived_at != null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -83,7 +83,7 @@ function prepareStatements() {
 
     // Player W/L record
     getPlayerWL: db.prepare(
-      `SELECT p.id, p.name, p.skill_level, p.status, p.arrived_at, p.break_at, p.created_at,
+      `SELECT p.id, p.name, p.skill_level, p.status, p.arrived_at, p.break_at, p.created_at, p.mix_preference,
               COUNT(CASE WHEN ((mp.team = 'A' AND mh.score_a > mh.score_b) OR (mp.team = 'B' AND mh.score_b > mh.score_a)) THEN 1 END) AS wins,
               COUNT(CASE WHEN ((mp.team = 'A' AND mh.score_a < mh.score_b) OR (mp.team = 'B' AND mh.score_b < mh.score_a)) THEN 1 END) AS losses,
               COUNT(CASE WHEN mp.match_history_id IS NOT NULL THEN 1 END) AS games_played
@@ -139,6 +139,14 @@ const sessionService = {
     s.endSession.run('ended', Date.now(), sessionId);
   },
 
+  // Update session mix mode ('grouped' or 'open_mix')
+  setMixMode(sessionId, mixMode) {
+    const valid = ['grouped', 'open_mix'];
+    if (!valid.includes(mixMode)) throw new Error('Invalid mix mode');
+    db.prepare('UPDATE sessions SET mix_mode = ? WHERE id = ?').run(mixMode, sessionId);
+    this.broadcastSessionState(sessionId);
+  },
+
   // ===== PLAYER ROSTER MANAGEMENT =====
   importPlayerRoster(sessionId, players) {
     if (!players || players.length === 0) return 0;
@@ -166,14 +174,19 @@ const sessionService = {
   // Self-registration: player joins via QR code / link
   // arrived_at is left NULL — player is RSVP'd but not yet present
   // They become queue-eligible only after checking in via Arrival QR
-  registerPlayer(sessionId, name, skillLevel) {
+  registerPlayer(sessionId, name, skillLevel, mixPreference) {
     const s = prepareStatements();
     // Get next position
     const players = s.getSessionPlayers.all(sessionId);
     const nextPos = players.length + 1;
     const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, null);
+    const playerId = result.lastInsertRowid;
+    // Set mix preference if provided
+    if (mixPreference && ['same_level', 'mix_me_in'].includes(mixPreference)) {
+      db.prepare('UPDATE players SET mix_preference = ? WHERE id = ?').run(mixPreference, playerId);
+    }
     this.broadcastSessionState(sessionId);
-    return result.lastInsertRowid;
+    return playerId;
   },
 
   // Check-in: update arrived_at timestamp (Arrival QR at venue)
@@ -390,70 +403,102 @@ const sessionService = {
 
   // Internal: assign waiting players to available courts by skill grouping
   // Players are pre-sorted by fairness (fewest games, earliest arrival)
-  // Grouping priority: Advanced together, Intermediate together, Beginner together, then mix
+  // Mode: 'grouped' = skill grouping (default), 'open_mix' = pure fairness order
+  // Player preference: 'mix_me_in' players go to the mixed pool even in grouped mode
   _assignPlayersToCourts(sessionId, waitingPlayers, courts) {
-    const advanced = waitingPlayers.filter(p => p.skill_level === 'Advanced');
-    const intermediate = waitingPlayers.filter(p => p.skill_level === 'Intermediate');
-    const beginners = waitingPlayers.filter(p => p.skill_level === 'Beginner');
+    const session = this.getSession(sessionId);
+    const mixMode = session?.mix_mode || 'grouped';
 
     let courtIndex = 0;
     const gameAssignments = [];
 
-    // Rule 1: Group advanced together (competitive games)
-    while (advanced.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-      const picked = advanced.splice(0, PLAYERS_PER_COURT);
-      gameAssignments.push({
-        courtId: courts[courtIndex].id,
-        courtName: courts[courtIndex].name,
-        players: picked,
-        teamA: picked.slice(0, TEAMS),
-        teamB: picked.slice(TEAMS),
-        type: 'advanced',
-      });
-      courtIndex++;
-    }
+    if (mixMode === 'open_mix') {
+      // Open mix: ignore skill levels, fill courts by pure fairness order
+      const pool = [...waitingPlayers];
+      while (pool.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+        const picked = pool.splice(0, PLAYERS_PER_COURT);
+        gameAssignments.push({
+          courtId: courts[courtIndex].id,
+          courtName: courts[courtIndex].name,
+          players: picked,
+          teamA: picked.slice(0, TEAMS),
+          teamB: picked.slice(TEAMS),
+          type: 'mixed',
+        });
+        courtIndex++;
+      }
+    } else {
+      // Grouped mode: skill grouping with player preference override
+      // Players who chose "mix me in" go straight to the mixed pool
+      const mixMeIn = waitingPlayers.filter(p => p.mix_preference === 'mix_me_in');
+      const groupable = waitingPlayers.filter(p => p.mix_preference !== 'mix_me_in');
 
-    // Rule 2: Group intermediate together
-    while (intermediate.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-      const picked = intermediate.splice(0, PLAYERS_PER_COURT);
-      gameAssignments.push({
-        courtId: courts[courtIndex].id,
-        courtName: courts[courtIndex].name,
-        players: picked,
-        teamA: picked.slice(0, TEAMS),
-        teamB: picked.slice(TEAMS),
-        type: 'intermediate',
-      });
-      courtIndex++;
-    }
+      const advanced = groupable.filter(p => p.skill_level === 'Advanced');
+      const intermediate = groupable.filter(p => p.skill_level === 'Intermediate');
+      const beginners = groupable.filter(p => p.skill_level === 'Beginner');
 
-    // Rule 3: Group beginners together (protected)
-    while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-      const picked = beginners.splice(0, PLAYERS_PER_COURT);
-      gameAssignments.push({
-        courtId: courts[courtIndex].id,
-        courtName: courts[courtIndex].name,
-        players: picked,
-        teamA: picked.slice(0, TEAMS),
-        teamB: picked.slice(TEAMS),
-        type: 'beginner',
-      });
-      courtIndex++;
-    }
+      // Rule 1: Group advanced together (competitive games)
+      while (advanced.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+        const picked = advanced.splice(0, PLAYERS_PER_COURT);
+        gameAssignments.push({
+          courtId: courts[courtIndex].id,
+          courtName: courts[courtIndex].name,
+          players: picked,
+          teamA: picked.slice(0, TEAMS),
+          teamB: picked.slice(TEAMS),
+          type: 'advanced',
+        });
+        courtIndex++;
+      }
 
-    // Rule 4: Mix remaining (Advanced+Intermediate mix well; Beginners fill last)
-    const remaining = [...advanced, ...intermediate, ...beginners];
-    while (remaining.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-      const picked = remaining.splice(0, PLAYERS_PER_COURT);
-      gameAssignments.push({
-        courtId: courts[courtIndex].id,
-        courtName: courts[courtIndex].name,
-        players: picked,
-        teamA: picked.slice(0, TEAMS),
-        teamB: picked.slice(TEAMS),
-        type: 'mixed',
+      // Rule 2: Group intermediate together
+      while (intermediate.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+        const picked = intermediate.splice(0, PLAYERS_PER_COURT);
+        gameAssignments.push({
+          courtId: courts[courtIndex].id,
+          courtName: courts[courtIndex].name,
+          players: picked,
+          teamA: picked.slice(0, TEAMS),
+          teamB: picked.slice(TEAMS),
+          type: 'intermediate',
+        });
+        courtIndex++;
+      }
+
+      // Rule 3: Group beginners together (protected)
+      while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+        const picked = beginners.splice(0, PLAYERS_PER_COURT);
+        gameAssignments.push({
+          courtId: courts[courtIndex].id,
+          courtName: courts[courtIndex].name,
+          players: picked,
+          teamA: picked.slice(0, TEAMS),
+          teamB: picked.slice(TEAMS),
+          type: 'beginner',
+        });
+        courtIndex++;
+      }
+
+      // Rule 4: Mix remaining + "mix me in" players by fairness order
+      const remaining = [...mixMeIn, ...advanced, ...intermediate, ...beginners];
+      // Re-sort mixed pool by fairness (they came from different arrays)
+      remaining.sort((a, b) => {
+        const posA = waitingPlayers.indexOf(a);
+        const posB = waitingPlayers.indexOf(b);
+        return posA - posB;
       });
-      courtIndex++;
+      while (remaining.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
+        const picked = remaining.splice(0, PLAYERS_PER_COURT);
+        gameAssignments.push({
+          courtId: courts[courtIndex].id,
+          courtName: courts[courtIndex].name,
+          players: picked,
+          teamA: picked.slice(0, TEAMS),
+          teamB: picked.slice(TEAMS),
+          type: 'mixed',
+        });
+        courtIndex++;
+      }
     }
 
     // Execute assignments

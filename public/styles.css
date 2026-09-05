@@ -414,6 +414,18 @@ a:hover { color: var(--color-primary-hover); }
   text-align: center;
   color: var(--color-primary);
   padding: 8px 0;
+  transition: color 0.4s ease;
+}
+.match-timer--amber {
+  color: #D97706;
+}
+.match-timer--red {
+  color: var(--coral-500);
+  animation: timerPulse 1.5s ease-in-out infinite;
+}
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* ---------- Court card ---------- */

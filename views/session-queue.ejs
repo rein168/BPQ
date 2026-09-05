@@ -386,6 +386,17 @@
           <i class="bi bi-dash-lg"></i>
         </button>
       </div>
+      <!-- Mix mode toggle (host only) -->
+      <div class="host-only" id="mixModeBar" style="display:flex; align-items:center; gap:10px; padding:8px 14px; margin-bottom:12px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+        <i class="bi bi-shuffle" style="color:var(--text-muted);"></i>
+        <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600; flex:1;">Skill Mix</span>
+        <button id="mixModeGrouped" class="btn-bbq btn-bbq-sm" onclick="setMixMode('grouped')" style="font-size:var(--text-xs); padding:5px 12px;">
+          <i class="bi bi-layers"></i> Grouped
+        </button>
+        <button id="mixModeOpen" class="btn-bbq btn-bbq-sm" onclick="setMixMode('open_mix')" style="font-size:var(--text-xs); padding:5px 12px;">
+          <i class="bi bi-shuffle"></i> Open Mix
+        </button>
+      </div>
       <div id="courtsContainer">
         <div class="empty-state">
           <i class="bi bi-grid-3x3-gap"></i>
@@ -481,13 +492,19 @@
       return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    // Timer tick
+    // Timer tick with long-game nudge (amber@15min, red@20min)
+    const AMBER_MS = 15 * 60 * 1000;
+    const RED_MS = 20 * 60 * 1000;
     function startTimerTick() {
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         document.querySelectorAll('[data-match-started]').forEach(el => {
           const started = parseInt(el.getAttribute('data-match-started'), 10);
-          if (started) el.textContent = formatTimer(Date.now() - started);
+          if (!started) return;
+          const elapsed = Date.now() - started;
+          el.textContent = formatTimer(elapsed);
+          el.classList.toggle('match-timer--red', elapsed >= RED_MS);
+          el.classList.toggle('match-timer--amber', elapsed >= AMBER_MS && elapsed < RED_MS);
         });
       }, 1000);
     }
@@ -747,6 +764,34 @@
       }
     }
 
+    // ===== Mix mode toggle =====
+    async function setMixMode(mode) {
+      try {
+        const response = await fetch('/api/sessions/' + sessionId + '/mix-mode', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), mixMode: mode })
+        });
+        const data = await response.json();
+        if (!data.success) alert(data.error || 'Failed to update mix mode');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function updateMixModeUI(mixMode) {
+      const grouped = document.getElementById('mixModeGrouped');
+      const open = document.getElementById('mixModeOpen');
+      if (!grouped || !open) return;
+      if (mixMode === 'open_mix') {
+        grouped.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
+        open.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
+      } else {
+        grouped.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
+        open.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
+      }
+    }
+
     async function setPlayerStatus(playerId, status) {
       try {
         await fetch('/api/players/' + playerId + '/status', {
@@ -946,6 +991,9 @@
       // Update court count input
       const courtCountEl = document.getElementById('courtCountInput');
       if (courtCountEl && courts) courtCountEl.value = courts.length;
+
+      // Update mix mode toggle
+      updateMixModeUI(session.mix_mode || 'grouped');
 
       // === Courts tab ===
       const courtsContainer = document.getElementById('courtsContainer');

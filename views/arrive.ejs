@@ -185,12 +185,26 @@
       </div>
     </div>
 
-    <!-- Not registered — redirect to join -->
-    <div id="notRegisteredState" style="display:none;">
-      <div class="empty-state">
-        <i class="bi bi-person-x"></i>
-        <p>You haven't registered for this game yet.</p>
-        <a id="registerLink" href="#" class="btn-bbq btn-bbq-primary" style="margin-top:12px;">
+    <!-- Not registered / name lookup -->
+    <div id="notRegisteredState" style="display:none; width:100%;">
+      <div class="arrive-hero">
+        <img src="/icons/logo.webp" alt="BBQ" width="64" height="64" style="border-radius:14px;" />
+        <h1 id="sessionNameLookup"></h1>
+      </div>
+      <div style="text-align:center; margin-bottom:16px;">
+        <p style="font-size:var(--text-md); color:var(--text-secondary);">Enter your name to check in.</p>
+      </div>
+      <div id="lookupError" class="arrive-error"></div>
+      <div style="margin-bottom:12px;">
+        <input type="text" id="lookupName" class="join-input" placeholder="Your registered name" maxlength="100" autocomplete="name"
+          style="width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:var(--radius-md); font-size:var(--text-md); background:var(--bg-card); color:var(--text-primary);" />
+      </div>
+      <button class="btn-bbq btn-bbq-primary" onclick="lookupPlayer()" style="width:100%; padding:14px; font-size:var(--text-lg);">
+        <i class="bi bi-search"></i> Find Me
+      </button>
+      <div style="text-align:center; margin-top:16px;">
+        <p style="font-size:var(--text-sm); color:var(--text-muted);">Haven't registered yet?</p>
+        <a id="registerLink" href="#" class="btn-bbq btn-bbq-outline btn-bbq-sm" style="margin-top:6px;">
           <i class="bi bi-person-plus"></i> Register First
         </a>
       </div>
@@ -294,6 +308,9 @@
         document.getElementById('registerLink').href = '/join/' + sessionId;
         document.getElementById('viewGameLink').href = '/session/' + sessionId;
 
+        // Store session name for lookup state
+        document.getElementById('sessionNameLookup').textContent = session.name;
+
         // Check if registered
         const existing = getRegisteredPlayer();
         if (!existing) {
@@ -339,6 +356,74 @@
         showState('notFoundState');
       }
     }
+
+    // Name lookup for cross-device arrival (player registered on different device)
+    async function lookupPlayer() {
+      const nameInput = document.getElementById('lookupName');
+      const name = nameInput.value.trim();
+      const errorEl = document.getElementById('lookupError');
+      errorEl.style.display = 'none';
+
+      if (!name) {
+        errorEl.textContent = 'Please enter your name.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/players/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), name })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Player not found.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Save to localStorage so future visits remember
+        try {
+          localStorage.setItem('bbq_player_' + sessionId, JSON.stringify({
+            playerId: data.playerId,
+            name: data.name
+          }));
+        } catch {}
+
+        if (data.arrived) {
+          // Already checked in — reload to show arrived state
+          init();
+        } else {
+          // Show check-in prompt
+          const sessRes = await fetch('/api/sessions/' + sessionId);
+          const sessData = await sessRes.json();
+          const sessionName = sessData.session ? sessData.session.name : '';
+
+          const allPlayersRes = await fetch('/api/players/session/' + sessionId);
+          const allPlayersData = await allPlayersRes.json();
+          const allPlayers = allPlayersData.players || [];
+          const arrived = allPlayers.filter(p => p.arrived_at != null);
+
+          document.getElementById('sessionNameCheckin').textContent = sessionName;
+          document.getElementById('playerNameCheckin').textContent = data.name;
+          document.getElementById('preArrived').textContent = arrived.length;
+          document.getElementById('preTotal').textContent = allPlayers.length;
+          const pct = allPlayers.length > 0 ? Math.round((arrived.length / allPlayers.length) * 100) : 0;
+          document.getElementById('preProgressBar').style.width = pct + '%';
+          showState('checkinState');
+        }
+      } catch {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // Enter key on lookup input
+    document.getElementById('lookupName').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); lookupPlayer(); }
+    });
 
     async function doCheckin() {
       const existing = getRegisteredPlayer();

@@ -142,6 +142,20 @@ router.get('/:sessionId', (req, res) => {
   }
 });
 
+// Update session mix mode (host only)
+router.put('/:sessionId/mix-mode', requireHost, (req, res) => {
+  try {
+    const { mixMode } = req.body;
+    if (!['grouped', 'open_mix'].includes(mixMode)) {
+      return res.status(400).json({ error: 'Mix mode must be "grouped" or "open_mix"' });
+    }
+    sessionService.setMixMode(req.params.sessionId, mixMode);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // End session (host only)
 router.post('/:sessionId/end', requireHost, (req, res) => {
   try {
