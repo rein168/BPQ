@@ -207,8 +207,8 @@
       position: relative;
       overflow: hidden;
       width: 100%;
-      margin-top: 16px;
-      padding: 16px;
+      margin-top: 8px;
+      padding: 14px;
       font-size: var(--text-lg);
       font-family: var(--font-heading);
       font-weight: 700;
@@ -348,7 +348,7 @@
   <!-- Top Nav -->
   <nav class="bbq-topnav">
     <a href="/" class="bbq-topnav__logo">
-      <img src="/icons/logo.webp" alt="BBQ" width="40" height="40" />
+      <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" />
     </a>
     <div class="bbq-topnav__title" id="sessionName" style="flex:1; text-align:center;">Loading...</div>
     <div class="bbq-topnav__actions">
@@ -852,10 +852,16 @@
     async function endSession() {
       if (!confirm('End this game session? This cannot be undone.')) return;
       try {
-        await fetch('/api/sessions/' + sessionId + '/end', {
+        const res = await fetch('/api/sessions/' + sessionId + '/end', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin'
         });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          alert(data.error || 'Could not end session');
+          return;
+        }
         window.location.href = '/';
       } catch (err) {
         alert('Error: ' + err.message);

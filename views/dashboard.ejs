@@ -107,6 +107,7 @@
       font-size: var(--text-sm);
       background: var(--bg-page);
       color: var(--text-primary);
+      color-scheme: dark light;
     }
   </style>
 </head>
@@ -136,12 +137,15 @@
             <input type="text" id="sessionNameInput"
               placeholder="Game name"
               class="form-input" style="flex:1;" />
-            <input type="text" id="sessionPinInput"
-              placeholder="PIN"
-              pattern="\d{4,6}" maxlength="6" inputmode="numeric"
-              class="form-input" style="flex:0 0 60px; text-align:center;" />
+            <div class="form-sm" style="position:relative; flex:0 0 52px;">
+              <label for="sessionPinInput" style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--text-muted); background:var(--bg-card); padding:0 4px; white-space:nowrap;">4 Digit</label>
+              <input type="text" id="sessionPinInput"
+                placeholder="PIN"
+                pattern="\d{4}" maxlength="4" inputmode="numeric"
+                class="form-input" style="width:100%; text-align:center; letter-spacing:2px;" />
+            </div>
           </div>
-          <button type="submit" class="btn-bbq btn-bbq-primary" style="width:100%;">
+          <button type="submit" class="btn-bbq btn-bbq-primary" style="width:100%; text-align:center; justify-content:center;">
             <i class="bi bi-plus-lg"></i> Create Game
           </button>
           <p style="font-size:var(--text-xs); color:var(--text-muted); margin:8px 0 0;">
@@ -263,8 +267,14 @@
         return;
       }
 
-      // Filter out ended sessions
-      const activeSessions = sessions.filter(s => s.status !== 'ended');
+      // Filter out ended sessions and sessions with past game_date
+      const n = new Date();
+      const today = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+      const activeSessions = sessions.filter(s => {
+        if (s.status === 'ended') return false;
+        if (s.game_date && s.game_date < today) return false;
+        return true;
+      });
 
       if (activeSessions.length === 0) {
         container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>No active games. Create one to get started!</p></div>';
