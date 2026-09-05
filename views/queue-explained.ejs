@@ -274,7 +274,8 @@
       <div class="connector"></div>
       <span class="step-num">5</span>
       <h2>Match ends → rotation</h2>
-      <p>When a match ends, those 4 players go to the back of the queue. The court is now free. The algorithm immediately assigns the next 4 waiting players to that court.</p>
+      <p>When a match ends, those 4 players go to the back of the queue. The court is now free. The algorithm immediately assigns the next waiting batch to that court.</p>
+      <p>The next batch isn't tied to a specific court — it plays on whichever court finishes first. Some matches run long, some finish fast. The queue doesn't care which court opens up, it just fills the next one.</p>
       <div class="visual">
         <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg">
           <rect x="0" y="0" width="400" height="130" rx="8" class="svg-bg" />
