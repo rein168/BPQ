@@ -1,0 +1,41 @@
+<%# Analytics & Error Tracking — only loads when env vars are set %>
+
+<% if (typeof GOATCOUNTER_URL !== 'undefined' && GOATCOUNTER_URL) { %>
+<script data-goatcounter="<%= GOATCOUNTER_URL %>/count"
+        async src="//gc.zgo.at/count.js"></script>
+<% } %>
+
+<% if (typeof SENTRY_DSN !== 'undefined' && SENTRY_DSN) { %>
+<script
+  src="https://browser.sentry-cdn.com/8.53.0/bundle.min.js"
+  crossorigin="anonymous"
+></script>
+<script>
+  window.Sentry && Sentry.init({
+    dsn: '<%= SENTRY_DSN %>',
+    environment: '<%= NODE_ENV || "development" %>',
+    tracesSampleRate: 0.2,
+    ignoreErrors: [
+      'ResizeObserver loop',
+      'Non-Error promise rejection',
+      'Load failed',
+      'NetworkError',
+    ],
+  });
+</script>
+<% } %>
+
+<% if (typeof ONESIGNAL_APP_ID !== 'undefined' && ONESIGNAL_APP_ID) { %>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: '<%= ONESIGNAL_APP_ID %>',
+      serviceWorkerParam: { scope: '/push/onesignal/' },
+      serviceWorkerPath: '/push/onesignal/OneSignalSDKWorker.js',
+      notifyButton: { enable: false },
+    });
+  });
+</script>
+<% } %>
