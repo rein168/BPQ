@@ -156,11 +156,45 @@ router.put('/:sessionId/mix-mode', requireHost, (req, res) => {
   }
 });
 
-// End session (host only)
+// End session (host only) — returns game summary
 router.post('/:sessionId/end', requireHost, (req, res) => {
   try {
-    sessionService.endSession(req.params.sessionId);
-    res.json({ success: true });
+    const sid = req.params.sessionId;
+    const session = sessionService.getSession(sid);
+
+    // Gather summary before ending
+    const { summary, playerStats } = sessionService.getSessionStats(sid);
+    const players = sessionService.getSessionPlayers(sid);
+    const arrivedPlayers = players.filter(p => p.arrived_at).sort((a, b) => a.arrived_at - b.arrived_at);
+
+    // Calculate hours played (session created_at to now)
+    const startTime = session.created_at;
+    const endTime = Date.now();
+    const hoursPlayed = ((endTime - startTime) / 3600000).toFixed(1);
+
+    // First 3 arrivals
+    const firstArrivals = arrivedPlayers.slice(0, 3).map(p => p.name);
+
+    // Top 3 by wins
+    const topWins = [...playerStats]
+      .filter(p => p.wins > 0)
+      .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+      .slice(0, 3)
+      .map(p => ({ name: p.name, wins: p.wins, losses: p.losses }));
+
+    // End the session
+    sessionService.endSession(sid);
+
+    res.json({
+      success: true,
+      summary: {
+        matchesPlayed: summary.totalMatches,
+        hoursPlayed: parseFloat(hoursPlayed),
+        totalPlayers: arrivedPlayers.length,
+        firstArrivals,
+        topWins,
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

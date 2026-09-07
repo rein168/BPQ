@@ -5,7 +5,18 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
+const Sentry = require('@sentry/node');
 require('dotenv').config().parsed || {};
+
+// Sentry error tracking (only if DSN is configured)
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.2,
+  });
+  console.log('✅ Sentry error tracking enabled');
+}
 
 const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -63,13 +74,13 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://cdnjs.cloudflare.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://cdnjs.cloudflare.com", "https://gc.zgo.at", "https://browser.sentry-cdn.com", "https://cdn.onesignal.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:"],
-      workerSrc: ["'self'"],
-      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "ws:", "wss:", "https://*.ingest.sentry.io", "https://onesignal.com", "https://*.onesignal.com"],
+      workerSrc: ["'self'", "https://cdn.onesignal.com"],
+      imgSrc: ["'self'", "data:", "https://gc.zgo.at"],
       manifestSrc: ["'self'"],
     }
   }
@@ -91,9 +102,13 @@ app.use(bodyParser.json({ limit: '100kb' }));
 app.use(cookieParser(cookieSecret || 'default_secret_change_me'));
 app.use(express.static('public'));
 
-// Inject app version for cache-busting
+// Inject app version and analytics config into all views
 app.use((req, res, next) => {
   res.locals.APP_VERSION = APP_VERSION;
+  res.locals.NODE_ENV = process.env.NODE_ENV || 'development';
+  res.locals.GOATCOUNTER_URL = process.env.GOATCOUNTER_URL || '';
+  res.locals.SENTRY_DSN = process.env.SENTRY_DSN || '';
+  res.locals.ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '';
   next();
 });
 
@@ -123,6 +138,16 @@ app.get('/arrive/:sessionId', (req, res) => {
   res.render('arrive');
 });
 
+// Manual page
+app.get('/manual', (req, res) => {
+  res.render('manual');
+});
+
+// Queue explainer page
+app.get('/queue-explained', (req, res) => {
+  res.render('queue-explained');
+});
+
 // Socket.io handlers
 registerSocketHandlers(io);
 
@@ -130,6 +155,16 @@ registerSocketHandlers(io);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: APP_VERSION });
 });
+
+// Sentry test route (remove after verifying)
+app.get('/debug-sentry', (req, res) => {
+  throw new Error('BBQ Sentry test error');
+});
+
+// Sentry Express error handler (must be before custom error handler)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -140,10 +175,12 @@ app.use((err, req, res, next) => {
 // Process-level error handling
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
+  if (process.env.SENTRY_DSN) Sentry.captureException(err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (process.env.SENTRY_DSN) Sentry.captureException(reason);
 });
 
 // Start server

@@ -347,9 +347,9 @@
 <body>
   <!-- Top Nav -->
   <nav class="bbq-topnav">
-    <a href="/" class="bbq-topnav__logo">
-      <img src="/icons/logo.webp" alt="BBQ" width="28" height="28" />
-    </a>
+    <div id="logoLink" class="bbq-topnav__logo">
+      <img src="/icons/logo.webp" alt="BBQ" width="40" height="40" style="border-radius:6px;" />
+    </div>
     <div class="bbq-topnav__title" id="sessionName" style="flex:1; text-align:center;">Loading...</div>
     <div class="bbq-topnav__actions">
       <button class="btn-bbq btn-bbq-ghost" onclick="showQrModal()" title="Arrival QR Code" style="padding:4px 6px; font-size:28px; line-height:1;">
@@ -416,17 +416,6 @@
         </button>
         <button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="removeCourt()" style="width:40px; height:36px; padding:0; font-size:18px; display:flex; align-items:center; justify-content:center;">
           <i class="bi bi-dash-lg"></i>
-        </button>
-      </div>
-      <!-- Mix mode toggle (host only) -->
-      <div class="host-only" id="mixModeBar" style="display:flex; align-items:center; gap:8px; padding:6px 12px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
-        <i class="bi bi-shuffle" style="color:var(--text-muted);"></i>
-        <span style="font-size:var(--text-sm); color:var(--text-secondary); font-weight:600; flex:1;">Skill Mix</span>
-        <button id="mixModeGrouped" class="btn-bbq btn-bbq-sm" onclick="setMixMode('grouped')" style="font-size:var(--text-xs); padding:5px 12px;">
-          <i class="bi bi-layers"></i> Grouped
-        </button>
-        <button id="mixModeOpen" class="btn-bbq btn-bbq-sm" onclick="setMixMode('open_mix')" style="font-size:var(--text-xs); padding:5px 12px;">
-          <i class="bi bi-shuffle"></i> Open Mix
         </button>
       </div>
       <div id="courtsContainer">
@@ -570,6 +559,16 @@
       userRole = role;
       document.body.classList.remove('role-host', 'role-viewer');
       document.body.classList.add('role-' + role);
+      // Make logo a link to dashboard for hosts only
+      const logo = document.getElementById('logoLink');
+      if (role === 'host' && logo.tagName !== 'A') {
+        const a = document.createElement('a');
+        a.href = '/';
+        a.className = logo.className;
+        a.id = logo.id;
+        a.innerHTML = logo.innerHTML;
+        logo.replaceWith(a);
+      }
     }
 
     function showPinModal() {
@@ -796,34 +795,6 @@
       }
     }
 
-    // ===== Mix mode toggle =====
-    async function setMixMode(mode) {
-      try {
-        const response = await fetch('/api/sessions/' + sessionId + '/mix-mode', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: parseInt(sessionId), mixMode: mode })
-        });
-        const data = await response.json();
-        if (!data.success) alert(data.error || 'Failed to update mix mode');
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
-    }
-
-    function updateMixModeUI(mixMode) {
-      const grouped = document.getElementById('mixModeGrouped');
-      const open = document.getElementById('mixModeOpen');
-      if (!grouped || !open) return;
-      if (mixMode === 'open_mix') {
-        grouped.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
-        open.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
-      } else {
-        grouped.className = 'btn-bbq btn-bbq-primary btn-bbq-sm';
-        open.className = 'btn-bbq btn-bbq-outline btn-bbq-sm';
-      }
-    }
-
     async function setPlayerStatus(playerId, status) {
       try {
         await fetch('/api/players/' + playerId + '/status', {
@@ -862,10 +833,72 @@
           alert(data.error || 'Could not end session');
           return;
         }
-        window.location.href = '/';
+        showEndSummary(data.summary);
       } catch (err) {
         alert('Error: ' + err.message);
       }
+    }
+
+    function showEndSummary(s) {
+      // Build top wins list
+      let topWinsHtml = '';
+      if (s.topWins && s.topWins.length > 0) {
+        const medals = ['🥇', '🥈', '🥉'];
+        topWinsHtml = s.topWins.map((p, i) =>
+          '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border-subtle);">' +
+            '<span>' + medals[i] + ' ' + esc(p.name) + '</span>' +
+            '<span style="font-variant-numeric:tabular-nums; color:var(--text-muted); font-size:var(--text-xs);">' + p.wins + 'W / ' + p.losses + 'L</span>' +
+          '</div>'
+        ).join('');
+      } else {
+        topWinsHtml = '<div style="color:var(--text-muted); font-size:var(--text-sm);">No scored matches</div>';
+      }
+
+      // Build first arrivals
+      let arrivalsHtml = '';
+      if (s.firstArrivals && s.firstArrivals.length > 0) {
+        const badges = ['🥇', '🥈', '🥉'];
+        arrivalsHtml = s.firstArrivals.map((name, i) =>
+          '<span style="font-size:var(--text-sm);">' + badges[i] + ' ' + esc(name) + '</span>'
+        ).join('<span style="color:var(--text-muted); margin:0 4px;">·</span>');
+      }
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:400; display:flex; align-items:center; justify-content:center; padding:16px;';
+      overlay.innerHTML =
+        '<div class="bbq-card" style="max-width:380px; width:100%;">' +
+          '<div class="bbq-card__header"><i class="bi bi-trophy"></i> Game Over</div>' +
+          '<div class="bbq-card__body" style="text-align:center;">' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">' +
+              '<div style="background:var(--neutral-50); border-radius:var(--radius-sm); padding:12px;">' +
+                '<div style="font-size:var(--text-3xl); font-weight:800; color:var(--color-primary);">' + s.matchesPlayed + '</div>' +
+                '<div style="font-size:var(--text-xs); color:var(--text-muted);">Matches</div>' +
+              '</div>' +
+              '<div style="background:var(--neutral-50); border-radius:var(--radius-sm); padding:12px;">' +
+                '<div style="font-size:var(--text-3xl); font-weight:800; color:var(--color-primary);">' + s.hoursPlayed + '</div>' +
+                '<div style="font-size:var(--text-xs); color:var(--text-muted);">Hours</div>' +
+              '</div>' +
+              '<div style="background:var(--neutral-50); border-radius:var(--radius-sm); padding:12px; grid-column:span 2;">' +
+                '<div style="font-size:var(--text-3xl); font-weight:800; color:var(--color-primary);">' + s.totalPlayers + '</div>' +
+                '<div style="font-size:var(--text-xs); color:var(--text-muted);">Players</div>' +
+              '</div>' +
+            '</div>' +
+            (s.topWins && s.topWins.length > 0 ?
+              '<div style="text-align:left; margin-bottom:12px;">' +
+                '<div style="font-size:var(--text-xs); font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Most Wins</div>' +
+                topWinsHtml +
+              '</div>' : '') +
+            (arrivalsHtml ?
+              '<div style="text-align:left; margin-bottom:16px;">' +
+                '<div style="font-size:var(--text-xs); font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">First to Arrive</div>' +
+                '<div>' + arrivalsHtml + '</div>' +
+              '</div>' : '') +
+            '<button class="btn-bbq btn-bbq-primary" style="width:100%;" onclick="window.location.href=\'/\'">' +
+              '<i class="bi bi-house"></i> Back to Home' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
     }
 
     // ===== Stats =====
@@ -1043,9 +1076,6 @@
       const courtCountEl = document.getElementById('courtCountInput');
       if (courtCountEl && courts) courtCountEl.value = courts.length;
 
-      // Update mix mode toggle
-      updateMixModeUI(session.mix_mode || 'grouped');
-
       // === Courts tab ===
       const courtsContainer = document.getElementById('courtsContainer');
       if (!courts || courts.length === 0) {
@@ -1092,7 +1122,7 @@
                   teamsHtml +
                   '<button class="hold-btn hold-btn--end" data-court-id="' + courtData.court.id + '" data-action="end">' +
                     '<span class="hold-btn__fill"></span>' +
-                    '<span class="hold-btn__label">Press & Hold to END GAME</span>' +
+                    '<span class="hold-btn__label">END MATCH</span>' +
                   '</button>' +
                 '</div>' +
               '</div>';
@@ -1106,7 +1136,7 @@
                   teamsHtml +
                   '<button class="hold-btn hold-btn--start" data-court-id="' + courtData.court.id + '" data-action="start">' +
                     '<span class="hold-btn__fill"></span>' +
-                    '<span class="hold-btn__label">START GAME</span>' +
+                    '<span class="hold-btn__label">START MATCH</span>' +
                   '</button>' +
                 '</div>' +
               '</div>';
@@ -1563,5 +1593,6 @@
         .catch(err => console.warn('SW registration failed:', err));
     }
   </script>
+<%- include('partials/analytics') %>
 </body>
 </html>
