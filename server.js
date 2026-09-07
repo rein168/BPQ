@@ -156,6 +156,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: APP_VERSION });
 });
 
+// Sentry test route (hit /debug-sentry to verify, then remove)
+app.get('/debug-sentry', function mainHandler(req, res) {
+  throw new Error('My first Sentry error!');
+});
+
 // Sentry Express error handler (must be before custom error handler)
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
