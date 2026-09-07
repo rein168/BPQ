@@ -156,10 +156,19 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', version: APP_VERSION });
 });
 
+// Sentry test route (remove after verifying)
+app.get('/debug-sentry', (req, res) => {
+  throw new Error('BBQ Sentry test error');
+});
+
+// Sentry Express error handler (must be before custom error handler)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  if (process.env.SENTRY_DSN) Sentry.captureException(err);
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
