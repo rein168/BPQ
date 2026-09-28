@@ -1,3 +1,5 @@
+// Must be first: loads .env and initializes Sentry before express is required
+const Sentry = require('./instrument');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -5,18 +7,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
-const Sentry = require('@sentry/node');
-require('dotenv').config().parsed || {};
-
-// Sentry error tracking (only if DSN is configured)
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.2,
-  });
-  console.log('✅ Sentry error tracking enabled');
-}
 
 const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -86,15 +76,28 @@ app.use(helmet({
   }
 }));
 
-// Rate limiting
+// Behind Northflank's proxy: use X-Forwarded-For for the client IP
+app.set('trust proxy', 1);
+
+// Rate limiting. Generous because a whole venue shares one Wi-Fi IP.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' }
 });
 app.use('/api/', apiLimiter);
+
+// Strict limiter for PIN attempts (brute-force protection)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many PIN attempts, please wait and try again' }
+});
+app.use('/api/sessions/:sessionId/auth', authLimiter);
 
 // Body size limits
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
@@ -172,15 +175,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Process-level error handling
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  if (process.env.SENTRY_DSN) Sentry.captureException(err);
-});
-
+// Process-level error handling.
+// Uncaught exceptions are left to Sentry's default handler (report, flush, exit)
+// or Node's default crash, so the container restarts cleanly instead of running
+// in an unknown state. Sentry also captures unhandled rejections on its own.
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  if (process.env.SENTRY_DSN) Sentry.captureException(reason);
 });
 
 // Start server

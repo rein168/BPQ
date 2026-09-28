@@ -383,7 +383,9 @@
     }
 
     loadSessions();
-    setInterval(loadSessions, 5000);
+    // Refresh every 30s while visible, and immediately when the tab comes back
+    setInterval(() => { if (!document.hidden) loadSessions(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadSessions(); });
 
     // Service worker
     if ('serviceWorker' in navigator) {

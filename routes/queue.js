@@ -12,7 +12,7 @@ router.post('/allocate', requireHost, (req, res) => {
     const result = sessionService.autoAllocateCourts(sessionId);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -25,7 +25,7 @@ router.post('/begin/:courtId', (req, res) => {
     sessionService.beginMatch(sessionId, req.params.courtId);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
@@ -38,7 +38,7 @@ router.post('/:courtId/finish', (req, res) => {
     const result = sessionService.endCourt(sessionId, req.params.courtId);
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -57,7 +57,7 @@ router.post('/score/:matchId', requireHost, (req, res) => {
     sessionService.recordScore(req.params.matchId, scoreA, scoreB);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -67,7 +67,7 @@ router.get('/:sessionId/:courtId/status', (req, res) => {
     const status = sessionService.getCourtStatus(req.params.sessionId, req.params.courtId);
     res.json({ status });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
