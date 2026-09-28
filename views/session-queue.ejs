@@ -657,7 +657,9 @@
     }
 
     // ===== Socket =====
-    socket.emit('join-session', parseInt(sessionId));
+    // Join the session room on every (re)connect; rooms don't survive reconnects
+    socket.on('connect', () => socket.emit('join-session', parseInt(sessionId)));
+    if (socket.connected) socket.emit('join-session', parseInt(sessionId));
 
     socket.on('session:' + sessionId, (data) => {
       sessionState = data;
@@ -679,10 +681,7 @@
           body: JSON.stringify({ sessionId: parseInt(sessionId) })
         });
         const data = await response.json();
-        if (data.success) {
-          // Switch to stats tab if there's a new match to score
-          socket.emit('get-session-state', parseInt(sessionId));
-        }
+        if (!data.success) alert(data.error || 'Could not end match');
       } catch (err) {
         alert('Error: ' + err.message);
       }
@@ -797,11 +796,15 @@
 
     async function setPlayerStatus(playerId, status) {
       try {
-        await fetch('/api/players/' + playerId + '/status', {
+        const res = await fetch('/api/players/' + playerId + '/status', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: parseInt(sessionId), status })
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || 'Could not change status');
+        }
       } catch (err) {
         alert('Error: ' + err.message);
       }
@@ -810,11 +813,15 @@
     async function removePlayer(playerId) {
       if (!confirm('Remove this player?')) return;
       try {
-        await fetch('/api/players/' + playerId, {
+        const res = await fetch('/api/players/' + playerId, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: parseInt(sessionId) })
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || 'Could not remove player');
+        }
       } catch (err) {
         alert('Error: ' + err.message);
       }
@@ -1582,9 +1589,6 @@
       html += '</div></div>';
       return html;
     }
-
-    // ===== Init =====
-    socket.emit('get-session-state', parseInt(sessionId));
 
     // Register service worker
     if ('serviceWorker' in navigator) {

@@ -9,7 +9,7 @@ router.get('/session/:sessionId', (req, res) => {
     const courts = sessionService.getSessionCourts(req.params.sessionId);
     res.json({ courts });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -21,7 +21,7 @@ router.post('/add', requireHost, (req, res) => {
     const courtId = sessionService.addCourt(sessionId);
     res.json({ success: true, courtId });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
@@ -33,7 +33,7 @@ router.post('/remove', requireHost, (req, res) => {
     sessionService.removeCourt(sessionId, courtId);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 

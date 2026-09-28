@@ -1,57 +1,31 @@
 const sessionService = require('../services/sessionService');
 
+// Sockets are read-only: clients join a session room and receive state.
+// All mutations go through the REST API, which enforces host auth.
 const registerSocketHandlers = (io) => {
   io.on('connection', (socket) => {
-    console.log(`Socket connected: ${socket.id}`);
+    const sendState = (sessionId) => {
+      try {
+        const state = sessionService.getSessionState(sessionId);
+        if (state) socket.emit(`session:${sessionId}`, state);
+      } catch (err) {
+        socket.emit('error', { message: err.message });
+      }
+    };
 
-    // Join a session room
+    // Join a session room and send the current state to this socket only
     socket.on('join-session', (sessionId) => {
-      socket.join(`session:${sessionId}`);
-      try {
-        sessionService.broadcastSessionState(sessionId);
-      } catch (err) {
-        console.error('Error joining session:', err);
-      }
+      const id = Number(sessionId);
+      if (!Number.isInteger(id)) return;
+      socket.join(`session:${id}`);
+      sendState(id);
     });
 
-    // Auto-allocate courts
-    socket.on('allocate-courts', (sessionId) => {
-      try {
-        const result = sessionService.autoAllocateCourts(sessionId);
-        io.to(`session:${sessionId}`).emit('courts-allocated', result);
-      } catch (err) {
-        socket.emit('error', { message: err.message });
-      }
-    });
-
-    // End match on a court (game finished)
-    socket.on('finish-match', (data) => {
-      const { sessionId, courtId } = data;
-      try {
-        const result = sessionService.endCourt(sessionId, courtId);
-        io.to(`session:${sessionId}`).emit('match-finished', {
-          courtId,
-          durationMs: result.durationMs,
-          message: 'Game finished! Next game can start.'
-        });
-        // Broadcast updated state
-        sessionService.broadcastSessionState(sessionId);
-      } catch (err) {
-        socket.emit('error', { message: err.message });
-      }
-    });
-
-    // Get session state
+    // Re-fetch state (e.g. after an action) for this socket only
     socket.on('get-session-state', (sessionId) => {
-      try {
-        sessionService.broadcastSessionState(sessionId);
-      } catch (err) {
-        socket.emit('error', { message: err.message });
-      }
-    });
-
-    socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      const id = Number(sessionId);
+      if (!Number.isInteger(id)) return;
+      sendState(id);
     });
   });
 };

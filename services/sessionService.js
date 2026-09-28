@@ -98,6 +98,13 @@ function prepareStatements() {
   return stmts;
 }
 
+// Error carrying an HTTP status for routes to pass through
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 // Valid player statuses
 const VALID_STATUSES = ['waiting', 'playing', 'rested', 'break', 'skipped', 'absent', 'left_early'];
 // Statuses eligible for court allocation
@@ -134,15 +141,31 @@ const sessionService = {
     return s.getAllSessions.all();
   },
 
+  // Throws unless the session exists and is still active. Returns the session.
+  assertActive(sessionId) {
+    const session = this.getSession(sessionId);
+    if (!session) throw httpError(404, 'Session not found');
+    if (session.status === 'ended') throw httpError(400, 'Session has ended');
+    return session;
+  },
+
+  // End a session: clear all courts and take players off them, then mark ended
   endSession(sessionId) {
     const s = prepareStatements();
-    s.endSession.run('ended', Date.now(), sessionId);
+    db.transaction(() => {
+      // match_players rows for courts_in_use cascade on delete
+      db.prepare('DELETE FROM courts_in_use WHERE session_id = ?').run(sessionId);
+      db.prepare("UPDATE players SET status = 'rested' WHERE session_id = ? AND status = 'playing'").run(sessionId);
+      s.endSession.run('ended', Date.now(), sessionId);
+    })();
+    this.broadcastSessionState(sessionId);
   },
 
   // Update session mix mode ('grouped' or 'open_mix')
   setMixMode(sessionId, mixMode) {
     const valid = ['grouped', 'open_mix'];
     if (!valid.includes(mixMode)) throw new Error('Invalid mix mode');
+    this.assertActive(sessionId);
     db.prepare('UPDATE sessions SET mix_mode = ? WHERE id = ?').run(mixMode, sessionId);
     this.broadcastSessionState(sessionId);
   },
@@ -150,6 +173,7 @@ const sessionService = {
   // ===== PLAYER ROSTER MANAGEMENT =====
   importPlayerRoster(sessionId, players) {
     if (!players || players.length === 0) return 0;
+    this.assertActive(sessionId);
 
     const s = prepareStatements();
     const now = Date.now();
@@ -175,6 +199,7 @@ const sessionService = {
   // arrived_at is left NULL — player is RSVP'd but not yet present
   // They become queue-eligible only after checking in via Arrival QR
   registerPlayer(sessionId, name, skillLevel, mixPreference) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
     // Get next position
     const players = s.getSessionPlayers.all(sessionId);
@@ -192,6 +217,7 @@ const sessionService = {
   // Check-in: update arrived_at timestamp (Arrival QR at venue)
   // Returns arrival position and stats for the arrival page
   checkInPlayer(playerId, sessionId) {
+    this.assertActive(sessionId);
     const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
     if (!player) throw new Error('Player not found in this session');
 
@@ -246,10 +272,16 @@ const sessionService = {
     if (!VALID_STATUSES.includes(newStatus)) {
       throw new Error(`Invalid status: ${newStatus}`);
     }
+    this.assertActive(sessionId);
     const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
-    if (!player) throw new Error('Player not found in this session');
-    if (player.status === 'playing' && newStatus !== 'waiting' && newStatus !== 'rested') {
-      throw new Error('Cannot change status of a player currently on court');
+    if (!player) throw httpError(404, 'Player not found in this session');
+    // A player on court stays in match_players until the match ends; changing
+    // their status here would leave them on court and in the queue at once.
+    if (player.status === 'playing') {
+      throw new Error('Cannot change status of a player currently on court. End the match first.');
+    }
+    if (newStatus === 'playing') {
+      throw new Error('Players are put on court by allocation, not by status change');
     }
 
     const s = prepareStatements();
@@ -267,8 +299,9 @@ const sessionService = {
   },
 
   removePlayer(playerId, sessionId) {
+    this.assertActive(sessionId);
     const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
-    if (!player) throw new Error('Player not found in this session');
+    if (!player) throw httpError(404, 'Player not found in this session');
     if (player.status === 'playing') {
       throw new Error('Cannot remove a player who is currently playing');
     }
@@ -284,6 +317,7 @@ const sessionService = {
 
   // Add a court to a session (host adjusts court count up)
   addCourt(sessionId) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
     const existing = s.getSessionCourts.all(sessionId, 'active');
     if (existing.length >= 20) throw new Error('Maximum 20 courts');
@@ -296,6 +330,7 @@ const sessionService = {
 
   // Remove a court from a session (only if not occupied)
   removeCourt(sessionId, courtId) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
     const existing = s.getSessionCourts.all(sessionId, 'active');
     if (existing.length <= 1) throw new Error('Must have at least 1 court');
@@ -363,6 +398,7 @@ const sessionService = {
 
   // Smart court allocation based on skill levels + fairness
   autoAllocateCourts(sessionId) {
+    this.assertActive(sessionId);
     const waitingPlayers = this._getEligiblePlayers(sessionId);
 
     if (waitingPlayers.length < PLAYERS_PER_COURT) {
@@ -541,6 +577,7 @@ const sessionService = {
 
   // Begin the match timer on a court (START GAME pressed)
   beginMatch(sessionId, courtId) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
     const courtInUse = s.getCourtInUse.get(sessionId, courtId);
     if (!courtInUse) throw new Error('No match assigned to this court');
@@ -552,6 +589,7 @@ const sessionService = {
   },
 
   endCourt(sessionId, courtId) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
 
     const courtInUse = s.getCourtInUse.get(sessionId, courtId);
@@ -613,31 +651,41 @@ const sessionService = {
     return courtInUse;
   },
 
+  // Full state snapshot for a session (sent over sockets)
+  getSessionState(sessionId) {
+    const session = this.getSession(sessionId);
+    if (!session) return null;
+    const { pin_hash, ...publicSession } = session;
+    const playersWithStats = this.getPlayersWithStats(sessionId);
+    const courts = this.getSessionCourts(sessionId);
+
+    const courtsStatus = [];
+    for (const court of courts) {
+      const status = this.getCourtStatus(sessionId, court.id);
+      courtsStatus.push({
+        court,
+        match: status || null,
+      });
+    }
+
+    return {
+      session: { ...publicSession, hasPin: !!pin_hash },
+      players: playersWithStats,
+      courts: courtsStatus,
+      config: {
+        playersPerCourt: PLAYERS_PER_COURT,
+        playersPerCourtCapacity: PLAYERS_PER_COURT_CAPACITY,
+        maxPlayers: courts.length * PLAYERS_PER_COURT_CAPACITY,
+      },
+    };
+  },
+
+  // Push state only to clients in this session's room
   broadcastSessionState(sessionId) {
     try {
-      const session = this.getSession(sessionId);
-      const playersWithStats = this.getPlayersWithStats(sessionId);
-      const courts = this.getSessionCourts(sessionId);
-
-      const courtsStatus = [];
-      for (const court of courts) {
-        const status = this.getCourtStatus(sessionId, court.id);
-        courtsStatus.push({
-          court,
-          match: status || null,
-        });
-      }
-
-      io.emit(`session:${sessionId}`, {
-        session,
-        players: playersWithStats,
-        courts: courtsStatus,
-        config: {
-          playersPerCourt: PLAYERS_PER_COURT,
-          playersPerCourtCapacity: PLAYERS_PER_COURT_CAPACITY,
-          maxPlayers: courts.length * PLAYERS_PER_COURT_CAPACITY,
-        },
-      });
+      const state = this.getSessionState(sessionId);
+      if (!state) return;
+      io.to(`session:${sessionId}`).emit(`session:${sessionId}`, state);
     } catch (err) {
       console.error('Error broadcasting session state:', err);
     }

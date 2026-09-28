@@ -40,7 +40,7 @@ router.post('/', (req, res) => {
 
     res.json({ success: true, sessionId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -69,7 +69,7 @@ router.post('/:sessionId/auth', (req, res) => {
     grantHostAccess(res, req, session.id);
     res.json({ success: true, role: 'host' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -103,7 +103,7 @@ router.get('/:sessionId/role', (req, res) => {
       hasPin: !!session.pin_hash,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -125,7 +125,7 @@ router.get('/', (req, res) => {
     });
     res.json({ sessions: sanitized });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -138,7 +138,7 @@ router.get('/:sessionId', (req, res) => {
     const { pin_hash, ...sanitized } = session;
     res.json({ session: { ...sanitized, hasPin: !!pin_hash } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -152,7 +152,7 @@ router.put('/:sessionId/mix-mode', requireHost, (req, res) => {
     sessionService.setMixMode(req.params.sessionId, mixMode);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
@@ -160,7 +160,7 @@ router.put('/:sessionId/mix-mode', requireHost, (req, res) => {
 router.post('/:sessionId/end', requireHost, (req, res) => {
   try {
     const sid = req.params.sessionId;
-    const session = sessionService.getSession(sid);
+    const session = sessionService.assertActive(sid);
 
     // Gather summary before ending
     const { summary, playerStats } = sessionService.getSessionStats(sid);
@@ -196,7 +196,7 @@ router.post('/:sessionId/end', requireHost, (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -206,7 +206,7 @@ router.get('/:sessionId/history', (req, res) => {
     const history = sessionService.getMatchHistory(req.params.sessionId);
     res.json({ history });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -216,7 +216,7 @@ router.get('/:sessionId/stats', (req, res) => {
     const stats = sessionService.getSessionStats(req.params.sessionId);
     res.json(stats);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

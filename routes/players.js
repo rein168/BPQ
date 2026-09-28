@@ -45,7 +45,7 @@ router.post('/register', (req, res) => {
     const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel, mixPref);
     res.json({ success: true, playerId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -66,7 +66,7 @@ router.post('/lookup', (req, res) => {
     }
     res.json({ success: true, playerId: match.id, name: match.name, arrived: match.arrived_at != null });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -80,7 +80,7 @@ router.post('/checkin', (req, res) => {
     const result = sessionService.checkInPlayer(playerId, sessionId);
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
@@ -116,7 +116,7 @@ router.post('/import', requireHost, (req, res) => {
     const count = sessionService.importPlayerRoster(sessionId, players);
     res.json({ success: true, imported: count });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -126,7 +126,7 @@ router.get('/session/:sessionId', (req, res) => {
     const players = sessionService.getPlayersWithStats(req.params.sessionId);
     res.json({ players });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -140,7 +140,7 @@ router.put('/:playerId/skill', requireHost, (req, res) => {
     sessionService.updatePlayerSkill(req.params.playerId, skillLevel);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -173,7 +173,7 @@ router.put('/:playerId/status', (req, res) => {
     sessionService.setPlayerStatus(req.params.playerId, sessionId, status);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
@@ -186,7 +186,7 @@ router.delete('/:playerId', requireHost, (req, res) => {
     sessionService.removePlayer(req.params.playerId, sessionId);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
