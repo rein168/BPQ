@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const sessionService = require('../services/sessionService');
-const { requireHost, hashPin, verifyPin, grantHostAccess } = require('../middleware/auth');
+const { requireHost, isHostOf, hashPin, verifyPin, grantHostAccess, readMyPlayers } = require('../middleware/auth');
 
 // Create a new session (with optional PIN)
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, pin, courtCount, gameDate } = req.body;
     let trimmedName = (name && typeof name === 'string') ? name.trim() : '';
@@ -27,7 +27,7 @@ router.post('/', (req, res) => {
       if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
         return res.status(400).json({ error: 'PIN must be 4-6 digits' });
       }
-      pinHash = hashPin(pin);
+      pinHash = await hashPin(pin);
     }
 
     // Court count: host sets this; minimum 1, maximum 20
@@ -45,7 +45,7 @@ router.post('/', (req, res) => {
 });
 
 // Authenticate to a session (enter PIN to gain host access)
-router.post('/:sessionId/auth', (req, res) => {
+router.post('/:sessionId/auth', async (req, res) => {
   try {
     const { pin } = req.body;
     const session = sessionService.getSession(req.params.sessionId);
@@ -62,7 +62,7 @@ router.post('/:sessionId/auth', (req, res) => {
       return res.status(400).json({ error: 'PIN required' });
     }
 
-    if (!verifyPin(pin, session.pin_hash)) {
+    if (!(await verifyPin(pin, session.pin_hash))) {
       return res.status(403).json({ error: 'Incorrect PIN' });
     }
 
@@ -80,16 +80,7 @@ router.get('/:sessionId/role', (req, res) => {
     const session = sessionService.getSession(sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    let isHost = false;
-    try {
-      const hostSessions = req.signedCookies.hostSessions;
-      if (hostSessions) {
-        const authorized = JSON.parse(hostSessions);
-        isHost = Array.isArray(authorized) && authorized.includes(sessionId);
-      }
-    } catch {
-      // Invalid cookie, not a host
-    }
+    let isHost = isHostOf(req, sessionId);
 
     // Sessions without a PIN treat everyone as host (backward compat)
     if (!session.pin_hash) {
@@ -101,29 +92,19 @@ router.get('/:sessionId/role', (req, res) => {
     res.json({
       role: isHost ? 'host' : 'viewer',
       hasPin: !!session.pin_hash,
+      // Players this device registered or checked in (can manage own status)
+      myPlayerIds: readMyPlayers(req),
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Get all sessions
+// List active sessions (ended and past-dated ones are left out)
 router.get('/', (req, res) => {
   try {
-    const sessions = sessionService.getAllSessions();
-    // Strip pin_hash, add player count and max capacity
-    const sanitized = sessions.map(({ pin_hash, ...rest }) => {
-      const playerCount = sessionService.getSessionPlayers(rest.id).length;
-      const courts = sessionService.getSessionCourts(rest.id);
-      const maxPlayers = courts.length * 8;
-      return {
-        ...rest,
-        hasPin: !!pin_hash,
-        playerCount,
-        maxPlayers,
-      };
-    });
-    res.json({ sessions: sanitized });
+    const sessions = sessionService.getActiveSessionSummaries();
+    res.json({ sessions });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

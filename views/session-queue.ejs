@@ -489,7 +489,22 @@
     const socket = io();
     let sessionState = null;
     let userRole = 'viewer';
+    let myPlayerIds = []; // players this device registered or checked in
     let timerInterval = null;
+
+    // Mirrors the server's SELF_TRANSITIONS: what a player may do for themselves
+    const SELF_TRANSITIONS = {
+      waiting: ['break', 'left_early'],
+      rested: ['break', 'left_early'],
+      break: ['waiting', 'left_early'],
+    };
+
+    // onclick for a status button, or null (disabled) if this device can't do it
+    function statusAction(p, status) {
+      const allowed = userRole === 'host' ||
+        (myPlayerIds.includes(p.id) && (SELF_TRANSITIONS[p.status] || []).includes(status));
+      return allowed ? "setPlayerStatus(" + p.id + ",'" + status + "')" : null;
+    }
 
     // XSS-safe text helper
     function esc(str) {
@@ -545,7 +560,9 @@
       try {
         const response = await fetch('/api/sessions/' + sessionId + '/role');
         const data = await response.json();
+        myPlayerIds = data.myPlayerIds || [];
         setRole(data.role);
+        if (sessionState) updateUI();
         if (data.hasPin && data.role !== 'host') {
           document.getElementById('pinOverlay').style.display = 'flex';
         }
@@ -1284,26 +1301,26 @@
           stopBtn = tBtn('stop-fill', 'Stop', false, null);
         } else if (isWaiting) {
           playBtn = tBtn('play-fill', 'In queue', true, null, 'var(--color-primary)');
-          pauseBtn = tBtn('pause-fill', 'Take a break', false, "setPlayerStatus(" + p.id + ",'break')");
-          stopBtn = tBtn('stop-fill', 'Leaving', false, "setPlayerStatus(" + p.id + ",'left_early')");
+          pauseBtn = tBtn('pause-fill', 'Take a break', false, statusAction(p, 'break'));
+          stopBtn = tBtn('stop-fill', 'Leaving', false, statusAction(p, 'left_early'));
           // Host can skip (fast-forward)
           if (userRole === 'host') {
-            extraBtn = tBtn('fast-forward-fill', 'Skip', false, "setPlayerStatus(" + p.id + ",'skipped')");
+            extraBtn = tBtn('fast-forward-fill', 'Skip', false, statusAction(p, 'skipped'));
           }
         } else if (isBreak) {
-          playBtn = tBtn('play-fill', 'Back in queue', false, "setPlayerStatus(" + p.id + ",'waiting')");
+          playBtn = tBtn('play-fill', 'Back in queue', false, statusAction(p, 'waiting'));
           pauseBtn = tBtn('pause-fill', 'On break', true, null, '#D97706');
-          stopBtn = tBtn('stop-fill', 'Leaving', false, "setPlayerStatus(" + p.id + ",'left_early')");
+          stopBtn = tBtn('stop-fill', 'Leaving', false, statusAction(p, 'left_early'));
         } else if (isSkipped) {
           // Skipped: Fast-forward is active (grey), Rewind to return
-          extraBtn = tBtn('rewind-fill', 'Unskip', false, "setPlayerStatus(" + p.id + ",'waiting')");
+          extraBtn = tBtn('rewind-fill', 'Unskip', false, statusAction(p, 'waiting'));
           playBtn = '';
           pauseBtn = '';
           stopBtn = '';
-          extraBtn = tBtn('rewind-fill', 'Back in queue', false, "setPlayerStatus(" + p.id + ",'waiting')") +
+          extraBtn = tBtn('rewind-fill', 'Back in queue', false, statusAction(p, 'waiting')) +
                      tBtn('fast-forward-fill', 'Skipped', true, null, 'var(--neutral-500)');
         } else if (isLeft) {
-          playBtn = tBtn('play-fill', 'Back in queue', false, "setPlayerStatus(" + p.id + ",'waiting')");
+          playBtn = tBtn('play-fill', 'Back in queue', false, statusAction(p, 'waiting'));
           pauseBtn = tBtn('pause-fill', 'Pause', false, null);
           stopBtn = tBtn('stop-fill', 'Left', true, null, 'var(--color-danger)');
         } else {
@@ -1419,9 +1436,11 @@
               '<span style="font-weight:500;">' + esc(p.name) + '</span>' +
               '<span style="font-size:var(--text-xs); color:var(--text-muted); font-variant-numeric:tabular-nums;"><i class="bi bi-stopwatch"></i> ' + breakStr + '</span>' +
             '</div>' +
-            '<button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="setPlayerStatus(' + p.id + ',\'waiting\')" style="padding:2px 10px; font-size:var(--text-xs);">' +
-              '<i class="bi bi-play-fill"></i> Play' +
-            '</button>' +
+            (statusAction(p, 'waiting')
+              ? '<button class="btn-bbq btn-bbq-outline btn-bbq-sm" onclick="' + statusAction(p, 'waiting') + '" style="padding:2px 10px; font-size:var(--text-xs);">' +
+                  '<i class="bi bi-play-fill"></i> Play' +
+                '</button>'
+              : '') +
           '</div>';
         }
         html += '</div></div>';

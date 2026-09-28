@@ -45,7 +45,7 @@ router.post('/:courtId/finish', (req, res) => {
 // Record score for a completed match (host only)
 router.post('/score/:matchId', requireHost, (req, res) => {
   try {
-    const { scoreA, scoreB } = req.body;
+    const { sessionId, scoreA, scoreB } = req.body;
 
     if (typeof scoreA !== 'number' || typeof scoreB !== 'number') {
       return res.status(400).json({ error: 'Scores must be numbers' });
@@ -54,7 +54,7 @@ router.post('/score/:matchId', requireHost, (req, res) => {
       return res.status(400).json({ error: 'Scores must be 0-99' });
     }
 
-    sessionService.recordScore(req.params.matchId, scoreA, scoreB);
+    sessionService.recordScore(sessionId, req.params.matchId, scoreA, scoreB);
     res.json({ success: true });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });

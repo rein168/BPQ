@@ -129,6 +129,8 @@ const migrations = [
   // Phase 10: Skill mix preferences
   "ALTER TABLE sessions ADD COLUMN mix_mode TEXT DEFAULT 'grouped'",
   "ALTER TABLE players ADD COLUMN mix_preference TEXT DEFAULT 'same_level'",
+  // Phase 11: Soft-delete players so match history keeps them
+  'ALTER TABLE players ADD COLUMN removed_at INTEGER',
 ];
 
 for (const sql of migrations) {
