@@ -379,6 +379,22 @@
   </div>
 
   <!-- QR Code Modal (Arrival) -->
+  <!-- Swap a player on court for someone in the queue (host) -->
+  <div id="swapOverlay" class="qr-overlay" style="display:none;" onclick="if(event.target===this)hideSwapModal()">
+    <div class="bbq-card qr-modal">
+      <div class="bbq-card__header">
+        <i class="bi bi-arrow-left-right"></i> <span id="swapTitle">Sub in</span>
+        <button class="btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="hideSwapModal()" style="margin-left:auto; color:#fff; padding:4px 8px;" aria-label="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="bbq-card__body">
+        <p style="font-size:var(--text-sm); color:var(--text-secondary); margin-bottom:8px;">Pick who takes their place. They go back to the queue with no game counted.</p>
+        <div id="swapList" style="display:flex; flex-direction:column; gap:6px; max-height:50vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="qrOverlay" class="qr-overlay" onclick="if(event.target===this)hideQrModal()">
     <div class="bbq-card qr-modal">
       <div class="bbq-card__header">
@@ -730,6 +746,55 @@
         });
         const data = await response.json();
         if (!data.success) alert(data.error || 'Could not cancel assignment');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // A player's row on a court card; hosts get a swap button
+    function courtPlayerRow(pl, courtId) {
+      return '<div class="match-player-row" style="display:flex; align-items:center; justify-content:space-between; gap:4px;">' +
+        '<span style="min-width:0; overflow:hidden; text-overflow:ellipsis;">' + esc(pl.name) + '</span>' +
+        '<button class="host-only btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="showSwapModal(' + courtId + ',' + pl.id + ')" title="Swap ' + esc(pl.name) + ' for someone in the queue" aria-label="Swap ' + esc(pl.name) + '" style="padding:0 4px; flex-shrink:0;">' +
+          '<i class="bi bi-arrow-left-right"></i>' +
+        '</button>' +
+      '</div>';
+    }
+
+    // ===== Swap a player on court (host) =====
+    function showSwapModal(courtId, outPlayerId) {
+      if (!sessionState) return;
+      const out = sessionState.players.find(p => p.id === outPlayerId);
+      // Queue candidates in fairness order: fewest games, then earliest arrival
+      const candidates = sessionState.players
+        .filter(p => (p.status === 'waiting' || p.status === 'rested') && p.arrived_at)
+        .sort((a, b) => (a.games_played - b.games_played) || (a.arrived_at - b.arrived_at));
+      document.getElementById('swapTitle').textContent = 'Sub in for ' + (out ? out.name : 'player');
+      document.getElementById('swapList').innerHTML = candidates.length === 0
+        ? '<div style="color:var(--text-muted); font-size:var(--text-sm);">Nobody is waiting in the queue.</div>'
+        : candidates.map(p =>
+            '<button class="btn-bbq btn-bbq-outline" style="justify-content:space-between; width:100%;" onclick="swapPlayer(' + courtId + ',' + outPlayerId + ',' + p.id + ')">' +
+              '<span>' + skillBadge(p.skill_level) + ' ' + esc(p.name) + '</span>' +
+              '<span style="font-size:var(--text-xs); color:var(--text-muted);">' + p.games_played + ' played</span>' +
+            '</button>'
+          ).join('');
+      document.getElementById('swapOverlay').style.display = 'flex';
+    }
+
+    function hideSwapModal() {
+      document.getElementById('swapOverlay').style.display = 'none';
+    }
+
+    async function swapPlayer(courtId, outPlayerId, inPlayerId) {
+      try {
+        const response = await fetch('/api/queue/' + courtId + '/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId), outPlayerId, inPlayerId })
+        });
+        const data = await response.json();
+        if (!data.success) { alert(data.error || 'Could not swap player'); return; }
+        hideSwapModal();
       } catch (err) {
         alert('Error: ' + err.message);
       }
@@ -1136,7 +1201,7 @@
                   '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--green-700); margin-bottom:4px;">Team A</div>' +
                   playerIdsA.map(pid => {
                     const pl = players.find(p => p.id === pid);
-                    return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                    return pl ? courtPlayerRow(pl, courtData.court.id) : '';
                   }).join('') +
                 '</div>' +
                 '<div style="display:flex; align-items:center; font-weight:800; color:var(--text-muted);">vs</div>' +
@@ -1144,7 +1209,7 @@
                   '<div style="text-align:center; font-size:var(--text-xs); font-weight:700; color:var(--coral-500); margin-bottom:4px;">Team B</div>' +
                   playerIdsB.map(pid => {
                     const pl = players.find(p => p.id === pid);
-                    return pl ? '<div class="match-player-row">' + esc(pl.name) + '</div>' : '';
+                    return pl ? courtPlayerRow(pl, courtData.court.id) : '';
                   }).join('') +
                 '</div>' +
               '</div>';
