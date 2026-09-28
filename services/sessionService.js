@@ -25,8 +25,10 @@ function prepareStatements() {
     insertPlayer: db.prepare(
       'INSERT INTO players (session_id, name, skill_level, status, position, arrived_at) VALUES (?, ?, ?, ?, ?, ?)'
     ),
-    getSessionPlayers: db.prepare('SELECT * FROM players WHERE session_id = ? ORDER BY position ASC'),
-    updatePlayerSkill: db.prepare('UPDATE players SET skill_level = ? WHERE id = ?'),
+    getSessionPlayers: db.prepare('SELECT * FROM players WHERE session_id = ? AND removed_at IS NULL ORDER BY position ASC, id ASC'),
+    getPlayer: db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ? AND removed_at IS NULL'),
+    nextPlayerPosition: db.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS pos FROM players WHERE session_id = ?'),
+    updatePlayerSkill: db.prepare('UPDATE players SET skill_level = ? WHERE id = ? AND session_id = ? AND removed_at IS NULL'),
     updatePlayerStatus: db.prepare('UPDATE players SET status = ? WHERE id = ?'),
 
     // Courts (per-session)
@@ -63,7 +65,7 @@ function prepareStatements() {
       'INSERT INTO match_history (session_id, court_id, duration_ms) VALUES (?, ?, ?)'
     ),
     updateMatchScore: db.prepare(
-      'UPDATE match_history SET score_a = ?, score_b = ? WHERE id = ?'
+      'UPDATE match_history SET score_a = ?, score_b = ? WHERE id = ? AND session_id = ?'
     ),
     getMatchHistory: db.prepare(
       'SELECT * FROM match_history WHERE session_id = ? ORDER BY completed_at DESC LIMIT ?'
@@ -77,7 +79,7 @@ function prepareStatements() {
       `SELECT p.id, COUNT(mp.id) AS games_played
        FROM players p
        LEFT JOIN match_players mp ON mp.player_id = p.id AND mp.match_history_id IS NOT NULL
-       WHERE p.session_id = ?
+       WHERE p.session_id = ? AND p.removed_at IS NULL
        GROUP BY p.id`
     ),
 
@@ -90,9 +92,9 @@ function prepareStatements() {
        FROM players p
        LEFT JOIN match_players mp ON mp.player_id = p.id AND mp.match_history_id IS NOT NULL
        LEFT JOIN match_history mh ON mh.id = mp.match_history_id
-       WHERE p.session_id = ?
+       WHERE p.session_id = ? AND p.removed_at IS NULL
        GROUP BY p.id
-       ORDER BY p.position ASC`
+       ORDER BY p.position ASC, p.id ASC`
     ),
   };
   return stmts;
@@ -141,6 +143,25 @@ const sessionService = {
     return s.getAllSessions.all();
   },
 
+  // Active sessions for the dashboard, with player counts and capacity, in one
+  // query. Keeps sessions dated up to a day back: the server runs in UTC, so
+  // "today" on the host's phone can be yesterday here. The client filters exactly.
+  getActiveSessionSummaries() {
+    const rows = db.prepare(
+      `SELECT s.*,
+              (SELECT COUNT(*) FROM players p WHERE p.session_id = s.id AND p.removed_at IS NULL) AS playerCount,
+              (SELECT COUNT(*) FROM courts c WHERE c.session_id = s.id AND c.status = 'active') AS activeCourts
+       FROM sessions s
+       WHERE s.status = 'active' AND (s.game_date IS NULL OR s.game_date >= date('now', '-1 day'))
+       ORDER BY s.created_at DESC`
+    ).all();
+    return rows.map(({ pin_hash, activeCourts, ...rest }) => ({
+      ...rest,
+      hasPin: !!pin_hash,
+      maxPlayers: activeCourts * PLAYERS_PER_COURT_CAPACITY,
+    }));
+  },
+
   // Throws unless the session exists and is still active. Returns the session.
   assertActive(sessionId) {
     const session = this.getSession(sessionId);
@@ -178,9 +199,10 @@ const sessionService = {
     const s = prepareStatements();
     const now = Date.now();
     const insertMany = db.transaction((playerList) => {
+      const startPos = s.nextPlayerPosition.get(sessionId).pos;
       for (let i = 0; i < playerList.length; i++) {
         const p = playerList[i];
-        s.insertPlayer.run(sessionId, p.name, p.skill_level, 'waiting', i + 1, now);
+        s.insertPlayer.run(sessionId, p.name, p.skill_level, 'waiting', startPos + i, now);
       }
     });
 
@@ -201,9 +223,7 @@ const sessionService = {
   registerPlayer(sessionId, name, skillLevel, mixPreference) {
     this.assertActive(sessionId);
     const s = prepareStatements();
-    // Get next position
-    const players = s.getSessionPlayers.all(sessionId);
-    const nextPos = players.length + 1;
+    const nextPos = s.nextPlayerPosition.get(sessionId).pos;
     const result = s.insertPlayer.run(sessionId, name, skillLevel, 'waiting', nextPos, null);
     const playerId = result.lastInsertRowid;
     // Set mix preference if provided
@@ -218,8 +238,8 @@ const sessionService = {
   // Returns arrival position and stats for the arrival page
   checkInPlayer(playerId, sessionId) {
     this.assertActive(sessionId);
-    const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
-    if (!player) throw new Error('Player not found in this session');
+    const player = prepareStatements().getPlayer.get(playerId, sessionId);
+    if (!player) throw httpError(404, 'Player not found in this session');
 
     const allPlayers = this.getSessionPlayers(sessionId);
     const totalRsvp = allPlayers.length;
@@ -262,9 +282,16 @@ const sessionService = {
     return s.getPlayerWL.all(sessionId);
   },
 
-  updatePlayerSkill(playerId, skillLevel) {
+  getPlayer(playerId, sessionId) {
+    return prepareStatements().getPlayer.get(playerId, sessionId) || null;
+  },
+
+  updatePlayerSkill(playerId, sessionId, skillLevel) {
+    this.assertActive(sessionId);
     const s = prepareStatements();
-    s.updatePlayerSkill.run(skillLevel, playerId);
+    const result = s.updatePlayerSkill.run(skillLevel, playerId, sessionId);
+    if (result.changes === 0) throw httpError(404, 'Player not found in this session');
+    this.broadcastSessionState(sessionId);
   },
 
   // Set player status with validation
@@ -273,7 +300,7 @@ const sessionService = {
       throw new Error(`Invalid status: ${newStatus}`);
     }
     this.assertActive(sessionId);
-    const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
+    const player = this.getPlayer(playerId, sessionId);
     if (!player) throw httpError(404, 'Player not found in this session');
     // A player on court stays in match_players until the match ends; changing
     // their status here would leave them on court and in the queue at once.
@@ -300,12 +327,13 @@ const sessionService = {
 
   removePlayer(playerId, sessionId) {
     this.assertActive(sessionId);
-    const player = db.prepare('SELECT * FROM players WHERE id = ? AND session_id = ?').get(playerId, sessionId);
+    const player = this.getPlayer(playerId, sessionId);
     if (!player) throw httpError(404, 'Player not found in this session');
     if (player.status === 'playing') {
       throw new Error('Cannot remove a player who is currently playing');
     }
-    db.prepare('DELETE FROM players WHERE id = ? AND session_id = ?').run(playerId, sessionId);
+    // Soft delete: a hard delete would cascade and erase them from match history
+    db.prepare('UPDATE players SET removed_at = ? WHERE id = ? AND session_id = ?').run(Date.now(), playerId, sessionId);
     this.broadcastSessionState(sessionId);
   },
 
@@ -635,9 +663,12 @@ const sessionService = {
   },
 
   // Record score for a completed match
-  recordScore(matchHistoryId, scoreA, scoreB) {
+  // Allowed after the session ends so the host can catch up on scores
+  recordScore(sessionId, matchHistoryId, scoreA, scoreB) {
     const s = prepareStatements();
-    s.updateMatchScore.run(scoreA, scoreB, matchHistoryId);
+    const result = s.updateMatchScore.run(scoreA, scoreB, matchHistoryId, sessionId);
+    if (result.changes === 0) throw httpError(404, 'Match not found in this session');
+    this.broadcastSessionState(sessionId);
   },
 
   getCourtStatus(sessionId, courtId) {

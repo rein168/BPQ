@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const sessionService = require('../services/sessionService');
-const { requireHost } = require('../middleware/auth');
+const { requireHost, isHostOf, grantPlayerAccess, hasPlayerAccess } = require('../middleware/auth');
 
 // Player self-registration (no auth — anyone with the link/QR)
 router.post('/register', (req, res) => {
   try {
     const { sessionId, name, skillLevel, mixPreference } = req.body;
-    if (!sessionId || !name || !skillLevel) {
+    if (!sessionId || typeof name !== 'string' || !skillLevel) {
       return res.status(400).json({ error: 'Session ID, name, and skill level are required' });
     }
 
@@ -36,13 +36,16 @@ router.post('/register', (req, res) => {
       return res.status(409).json({ error: 'A player with that name is already in this session', playerId: duplicate.id });
     }
 
-    // Cap registration at courts × 8 (FCFS)
+    // Cap registration at courts × per-court capacity (FCFS)
     const maxPlayers = sessionService.getMaxPlayers(sessionId);
     if (existing.length >= maxPlayers) {
-      return res.status(400).json({ error: 'Game is full (' + maxPlayers + ' players max for ' + (maxPlayers / 8) + ' courts). Contact the host to add more courts.' });
+      const courtCount = sessionService.getSessionCourts(sessionId).length;
+      return res.status(400).json({ error: 'Game is full (' + maxPlayers + ' players max for ' + courtCount + ' courts). Contact the host to add more courts.' });
     }
 
     const playerId = sessionService.registerPlayer(sessionId, trimmedName, skillLevel, mixPref);
+    // This device can now manage this player's own break/leave status
+    grantPlayerAccess(res, req, playerId);
     res.json({ success: true, playerId });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -53,7 +56,7 @@ router.post('/register', (req, res) => {
 router.post('/lookup', (req, res) => {
   try {
     const { sessionId, name } = req.body;
-    if (!sessionId || !name) {
+    if (!sessionId || typeof name !== 'string') {
       return res.status(400).json({ error: 'Session ID and name required' });
     }
     const trimmedName = name.trim();
@@ -78,6 +81,7 @@ router.post('/checkin', (req, res) => {
       return res.status(400).json({ error: 'Session ID and player ID required' });
     }
     const result = sessionService.checkInPlayer(playerId, sessionId);
+    grantPlayerAccess(res, req, playerId);
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(err.status || 400).json({ error: err.message });
@@ -133,39 +137,38 @@ router.get('/session/:sessionId', (req, res) => {
 // Update player skill level (host only)
 router.put('/:playerId/skill', requireHost, (req, res) => {
   try {
-    const { skillLevel } = req.body;
+    const { sessionId, skillLevel } = req.body;
     if (!['Beginner', 'Intermediate', 'Advanced'].includes(skillLevel)) {
       return res.status(400).json({ error: 'Invalid skill level' });
     }
-    sessionService.updatePlayerSkill(req.params.playerId, skillLevel);
+    sessionService.updatePlayerSkill(req.params.playerId, sessionId, skillLevel);
     res.json({ success: true });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Set player status (break = anyone, others = host only)
+// Status changes a player may make for themselves, as [from, to] pairs.
+// Anything else (skip, absent, reviving someone who left) is host only.
+const SELF_TRANSITIONS = {
+  waiting: ['break', 'left_early'],
+  rested: ['break', 'left_early'],
+  break: ['waiting', 'left_early'],
+};
+
+// Set player status (host: any; player: own break/return/leave from their device)
 router.put('/:playerId/status', (req, res) => {
   try {
     const { sessionId, status } = req.body;
     if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
 
-    // 'break' can be toggled by the player themselves (viewer)
-    // All other status changes require host
-    const viewerAllowed = ['break', 'waiting']; // player can go on break or come back
-    if (!viewerAllowed.includes(status)) {
-      // Check host access
-      const hostSessions = req.signedCookies.hostSessions;
-      let isHost = false;
-      try {
-        if (hostSessions) {
-          const authorized = JSON.parse(hostSessions);
-          isHost = Array.isArray(authorized) && authorized.includes(Number(sessionId));
-        }
-      } catch {
-        // not a host
+    if (!isHostOf(req, sessionId)) {
+      const player = sessionService.getPlayer(req.params.playerId, sessionId);
+      if (!player) return res.status(404).json({ error: 'Player not found in this session' });
+      if (!hasPlayerAccess(req, player.id)) {
+        return res.status(403).json({ error: 'You can only change your own status. Ask the host for help.' });
       }
-      if (!isHost) {
+      if (!(SELF_TRANSITIONS[player.status] || []).includes(status)) {
         return res.status(403).json({ error: 'Host access required for this status change' });
       }
     }
@@ -186,7 +189,7 @@ router.delete('/:playerId', requireHost, (req, res) => {
     sessionService.removePlayer(req.params.playerId, sessionId);
     res.json({ success: true });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
