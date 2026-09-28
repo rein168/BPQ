@@ -38,7 +38,17 @@ router.post('/:courtId/finish', (req, res) => {
     const result = sessionService.endCourt(sessionId, req.params.courtId);
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+// Cancel an assignment that hasn't started (host only)
+router.post('/:courtId/cancel', requireHost, (req, res) => {
+  try {
+    sessionService.cancelAssignment(req.body.sessionId, req.params.courtId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
