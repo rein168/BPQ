@@ -53,6 +53,8 @@ const io = new Server(server, {
 });
 
 const APP_VERSION = require('./package.json').version;
+// Changes on every deploy/restart so the service worker drops stale caches
+const ASSET_VERSION = APP_VERSION + '-' + Date.now().toString(36);
 
 // Initialize Service
 sessionService.init(io);
@@ -68,7 +70,9 @@ app.use(helmet({
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:", "https://*.ingest.sentry.io", "https://onesignal.com", "https://*.onesignal.com"],
+      // CDN hosts are here because the service worker fetches them to precache
+      // (sw.js is served with this same CSP)
+      connectSrc: ["'self'", "ws:", "wss:", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://*.ingest.sentry.io", "https://onesignal.com", "https://*.onesignal.com"],
       workerSrc: ["'self'", "https://cdn.onesignal.com"],
       imgSrc: ["'self'", "data:", "https://gc.zgo.at"],
       manifestSrc: ["'self'"],
@@ -108,6 +112,7 @@ app.use(express.static('public'));
 // Inject app version and analytics config into all views
 app.use((req, res, next) => {
   res.locals.APP_VERSION = APP_VERSION;
+  res.locals.ASSET_VERSION = ASSET_VERSION;
   res.locals.NODE_ENV = process.env.NODE_ENV || 'development';
   res.locals.GOATCOUNTER_URL = process.env.GOATCOUNTER_URL || '';
   res.locals.SENTRY_DSN = process.env.SENTRY_DSN || '';
@@ -188,6 +193,27 @@ server.listen(port, () => {
   console.log(`\n🏸 BBQ (Badminton Batch Queueing) running on port ${port}`);
   console.log(`📱 Open http://localhost:${port}\n`);
 });
+
+// Graceful shutdown (Northflank sends SIGTERM on redeploy): stop taking
+// requests, back up to R2, close the database cleanly, then exit.
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`\n${signal} received, shutting down...`);
+  // Don't hang forever if something refuses to close
+  setTimeout(() => process.exit(1), 10000).unref();
+  io.close(); // also stops the HTTP server accepting connections
+  await new Promise(resolve => {
+    server.close(() => resolve());
+    server.closeAllConnections(); // don't wait on idle keep-alive sockets
+  });
+  await r2Backup.finalSync(db);
+  db.close();
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 } // end boot()
 

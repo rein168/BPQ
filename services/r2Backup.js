@@ -6,8 +6,9 @@
  *
  * Flow:
  *   1. On startup → download DB from R2 if local file is missing (fresh container)
- *   2. Every SYNC_INTERVAL_MS → upload DB to R2 if any writes happened
- *   3. On graceful shutdown (SIGTERM/SIGINT) → final upload
+ *   2. Every SYNC_INTERVAL_MS → upload DB to R2 if any writes happened,
+ *      plus one dated snapshot per day (<key>-YYYY-MM-DD.db)
+ *   3. On graceful shutdown (SIGTERM/SIGINT, see server.js) → final upload
  *
  * Required env vars:
  *   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
@@ -31,6 +32,7 @@ let dbKey = 'bpq.db';
 let syncInterval = null;
 let dirty = false;
 let enabled = false;
+let lastSnapshotDate = null;
 
 /**
  * Check if R2 is configured via environment variables.
@@ -121,6 +123,21 @@ async function uploadDb(db) {
 
     dirty = false;
     console.log(`☁️  DB backed up to R2 (${(fileBuffer.length / 1024).toFixed(1)} KB)`);
+
+    // The main key is overwritten every sync, so a bug that wipes data would
+    // replace the only good copy within a minute. Keep one copy per day too.
+    const today = new Date().toISOString().slice(0, 10);
+    if (lastSnapshotDate !== today) {
+      const snapshotKey = dbKey.replace(/\.db$/, '') + '-' + today + '.db';
+      await s3.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: snapshotKey,
+        Body: fileBuffer,
+        ContentType: 'application/x-sqlite3',
+      }));
+      lastSnapshotDate = today;
+      console.log(`☁️  Daily snapshot saved to R2 as "${snapshotKey}"`);
+    }
   } catch (err) {
     console.error('☁️  R2 upload error:', err.message);
   }
@@ -180,23 +197,24 @@ function startSync(db) {
   if (syncInterval.unref) syncInterval.unref();
 
   console.log(`☁️  R2 sync every ${intervalSec}s (when dirty)`);
+}
 
-  // Graceful shutdown: final upload
-  const shutdown = async (signal) => {
-    console.log(`\n☁️  ${signal} received — final R2 backup...`);
-    clearInterval(syncInterval);
-    await uploadDb(db);
-    process.exit(0);
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+/**
+ * Stop the sync timer and do a final upload. Called from server.js's
+ * shutdown handler; a no-op when R2 isn't configured.
+ */
+async function finalSync(db) {
+  if (!enabled) return;
+  clearInterval(syncInterval);
+  console.log('☁️  Final R2 backup...');
+  await uploadDb(db);
 }
 
 module.exports = {
   isConfigured,
   init,
   startSync,
+  finalSync,
   markDirty,
   uploadDb,
   downloadDb,
