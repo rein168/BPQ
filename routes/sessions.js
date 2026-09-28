@@ -141,17 +141,17 @@ router.put('/:sessionId/mix-mode', requireHost, (req, res) => {
 router.post('/:sessionId/end', requireHost, (req, res) => {
   try {
     const sid = req.params.sessionId;
-    const session = sessionService.assertActive(sid);
+    sessionService.assertActive(sid);
 
     // Gather summary before ending
     const { summary, playerStats } = sessionService.getSessionStats(sid);
     const players = sessionService.getSessionPlayers(sid);
     const arrivedPlayers = players.filter(p => p.arrived_at).sort((a, b) => a.arrived_at - b.arrived_at);
 
-    // Calculate hours played (session created_at to now)
-    const startTime = session.created_at;
-    const endTime = Date.now();
-    const hoursPlayed = ((endTime - startTime) / 3600000).toFixed(1);
+    // Hours played: first arrival or match start, to the last match finishing.
+    // (Not session creation, which can be days before a scheduled game.)
+    const span = sessionService.getPlaySpan(sid);
+    const hoursPlayed = span ? ((span.end - span.start) / 3600000).toFixed(1) : '0';
 
     // First 3 arrivals
     const firstArrivals = arrivedPlayers.slice(0, 3).map(p => p.name);

@@ -719,6 +719,22 @@
       }
     }
 
+    // Release an unstarted court: players go back to the queue, no game counted
+    async function cancelAssignment(courtId) {
+      if (!confirm('Send these players back to the queue? Then mark whoever is missing, and the court refills.')) return;
+      try {
+        const response = await fetch('/api/queue/' + courtId + '/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: parseInt(sessionId) })
+        });
+        const data = await response.json();
+        if (!data.success) alert(data.error || 'Could not cancel assignment');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
     // ===== Hold-to-confirm button logic =====
     let holdTimer = null;
     let holdingBtn = null;
@@ -1161,6 +1177,9 @@
                   '<button class="hold-btn hold-btn--start" data-court-id="' + courtData.court.id + '" data-action="start">' +
                     '<span class="hold-btn__fill"></span>' +
                     '<span class="hold-btn__label">START MATCH</span>' +
+                  '</button>' +
+                  '<button class="host-only btn-bbq btn-bbq-ghost btn-bbq-sm" onclick="cancelAssignment(' + courtData.court.id + ')" style="width:100%; margin-top:6px; font-size:var(--text-xs);">' +
+                    '<i class="bi bi-x-circle"></i> Someone missing? Cancel assignment' +
                   '</button>' +
                 '</div>' +
               '</div>';

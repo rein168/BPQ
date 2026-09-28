@@ -1,11 +1,11 @@
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
+const { planAssignments, sortByFairness, nextCourtName } = require('./allocation');
 
 let io;
 
 // Configurable court capacity: 4 for doubles (default), 2 for singles
 const PLAYERS_PER_COURT = parseInt(process.env.PLAYERS_PER_COURT, 10) || 4;
-const TEAMS = PLAYERS_PER_COURT / 2; // 2 players per team in doubles
 // Max players assigned per court (playing + waiting rotation)
 const PLAYERS_PER_COURT_CAPACITY = parseInt(process.env.PLAYERS_PER_COURT_CAPACITY, 10) || 8;
 
@@ -32,7 +32,8 @@ function prepareStatements() {
     updatePlayerStatus: db.prepare('UPDATE players SET status = ? WHERE id = ?'),
 
     // Courts (per-session)
-    getSessionCourts: db.prepare("SELECT * FROM courts WHERE session_id = ? AND status = ? ORDER BY id ASC"),
+    // Order by the number in "Court N" so a re-added Court 2 sits between 1 and 3
+    getSessionCourts: db.prepare("SELECT * FROM courts WHERE session_id = ? AND status = ? ORDER BY CAST(SUBSTR(name, 7) AS INTEGER), id ASC"),
     createCourt: db.prepare('INSERT INTO courts (name, uuid, session_id) VALUES (?, ?, ?)'),
     deleteCourt: db.prepare('DELETE FROM courts WHERE id = ? AND session_id = ?'),
     updateSessionCourtCount: db.prepare('UPDATE sessions SET court_count = ? WHERE id = ?'),
@@ -305,7 +306,7 @@ const sessionService = {
     // A player on court stays in match_players until the match ends; changing
     // their status here would leave them on court and in the queue at once.
     if (player.status === 'playing') {
-      throw new Error('Cannot change status of a player currently on court. End the match first.');
+      throw new Error('Cannot change status of a player currently on court. End or cancel the match first.');
     }
     if (newStatus === 'playing') {
       throw new Error('Players are put on court by allocation, not by status change');
@@ -322,6 +323,9 @@ const sessionService = {
       db.prepare('UPDATE players SET break_at = NULL WHERE id = ?').run(playerId);
     }
 
+    // Any status change can make an idle court fillable: a player returning
+    // completes a four, or a missing player marked absent after a cancel
+    this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
   },
 
@@ -349,9 +353,11 @@ const sessionService = {
     const s = prepareStatements();
     const existing = s.getSessionCourts.all(sessionId, 'active');
     if (existing.length >= 20) throw new Error('Maximum 20 courts');
-    const nextNum = existing.length + 1;
-    const result = s.createCourt.run('Court ' + nextNum, uuidv4(), sessionId);
+    const name = nextCourtName(existing.map(c => c.name));
+    const result = s.createCourt.run(name, uuidv4(), sessionId);
     s.updateSessionCourtCount.run(existing.length + 1, sessionId);
+    // A new court may be fillable right away from the waiting queue
+    this.tryAutoAllocate(sessionId);
     this.broadcastSessionState(sessionId);
     return result.lastInsertRowid;
   },
@@ -411,17 +417,7 @@ const sessionService = {
       countMap[row.id] = row.games_played;
     }
 
-    // Sort: fewest games first, then earliest arrival (arrived_at or created_at)
-    eligible.sort((a, b) => {
-      const gamesA = countMap[a.id] || 0;
-      const gamesB = countMap[b.id] || 0;
-      if (gamesA !== gamesB) return gamesA - gamesB;
-      const arrA = a.arrived_at || a.created_at;
-      const arrB = b.arrived_at || b.created_at;
-      return arrA - arrB;
-    });
-
-    return eligible;
+    return sortByFairness(eligible, countMap);
   },
 
   // Smart court allocation based on skill levels + fairness
@@ -465,114 +461,20 @@ const sessionService = {
     return allocated.length > 0 ? allocated[0] : null;
   },
 
-  // Internal: assign waiting players to available courts by skill grouping
-  // Players are pre-sorted by fairness (fewest games, earliest arrival)
-  // Mode: 'grouped' = skill grouping (default), 'open_mix' = pure fairness order
-  // Player preference: 'mix_me_in' players go to the mixed pool even in grouped mode
+  // Internal: plan games for the free courts (see services/allocation.js) and
+  // put the players on court. Players are pre-sorted by fairness.
   _assignPlayersToCourts(sessionId, waitingPlayers, courts) {
     const session = this.getSession(sessionId);
-    const mixMode = session?.mix_mode || 'grouped';
+    const games = planAssignments(waitingPlayers, courts.length, {
+      mixMode: session?.mix_mode || 'grouped',
+      playersPerCourt: PLAYERS_PER_COURT,
+    });
 
-    let courtIndex = 0;
-    const gameAssignments = [];
-
-    if (mixMode === 'open_mix') {
-      // Open mix: ignore skill levels, fill courts by pure fairness order
-      const pool = [...waitingPlayers];
-      while (pool.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-        const picked = pool.splice(0, PLAYERS_PER_COURT);
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          courtName: courts[courtIndex].name,
-          players: picked,
-          teamA: picked.slice(0, TEAMS),
-          teamB: picked.slice(TEAMS),
-          type: 'mixed',
-        });
-        courtIndex++;
-      }
-    } else {
-      // Grouped mode: skill grouping with player preference override
-      // Players who chose "mix me in" go straight to the mixed pool
-      const mixMeIn = waitingPlayers.filter(p => p.mix_preference === 'mix_me_in');
-      const groupable = waitingPlayers.filter(p => p.mix_preference !== 'mix_me_in');
-
-      const advanced = groupable.filter(p => p.skill_level === 'Advanced');
-      const intermediate = groupable.filter(p => p.skill_level === 'Intermediate');
-      const beginners = groupable.filter(p => p.skill_level === 'Beginner');
-
-      // Rule 1: Group advanced together (competitive games)
-      while (advanced.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-        const picked = advanced.splice(0, PLAYERS_PER_COURT);
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          courtName: courts[courtIndex].name,
-          players: picked,
-          teamA: picked.slice(0, TEAMS),
-          teamB: picked.slice(TEAMS),
-          type: 'advanced',
-        });
-        courtIndex++;
-      }
-
-      // Rule 2: Group intermediate together
-      while (intermediate.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-        const picked = intermediate.splice(0, PLAYERS_PER_COURT);
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          courtName: courts[courtIndex].name,
-          players: picked,
-          teamA: picked.slice(0, TEAMS),
-          teamB: picked.slice(TEAMS),
-          type: 'intermediate',
-        });
-        courtIndex++;
-      }
-
-      // Rule 3: Group beginners together (protected)
-      while (beginners.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-        const picked = beginners.splice(0, PLAYERS_PER_COURT);
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          courtName: courts[courtIndex].name,
-          players: picked,
-          teamA: picked.slice(0, TEAMS),
-          teamB: picked.slice(TEAMS),
-          type: 'beginner',
-        });
-        courtIndex++;
-      }
-
-      // Rule 4: Mix remaining + "mix me in" players by fairness order
-      const remaining = [...mixMeIn, ...advanced, ...intermediate, ...beginners];
-      // Re-sort mixed pool by fairness (they came from different arrays)
-      remaining.sort((a, b) => {
-        const posA = waitingPlayers.indexOf(a);
-        const posB = waitingPlayers.indexOf(b);
-        return posA - posB;
-      });
-      while (remaining.length >= PLAYERS_PER_COURT && courtIndex < courts.length) {
-        const picked = remaining.splice(0, PLAYERS_PER_COURT);
-        gameAssignments.push({
-          courtId: courts[courtIndex].id,
-          courtName: courts[courtIndex].name,
-          players: picked,
-          teamA: picked.slice(0, TEAMS),
-          teamB: picked.slice(TEAMS),
-          type: 'mixed',
-        });
-        courtIndex++;
-      }
-    }
-
-    // Execute assignments
-    const allocated = [];
-    for (const assignment of gameAssignments) {
-      this.startCourt(sessionId, assignment.courtId, assignment.teamA, assignment.teamB);
-      allocated.push(assignment);
-    }
-
-    return allocated;
+    return games.map((game, i) => {
+      const assignment = { courtId: courts[i].id, courtName: courts[i].name, ...game };
+      this.startCourt(sessionId, assignment.courtId, game.teamA, game.teamB);
+      return assignment;
+    });
   },
 
   // Assign players to a court (pre-game: match_started_at = null)
@@ -603,6 +505,28 @@ const sessionService = {
     assignMatch();
   },
 
+  // Undo an assignment that hasn't started (e.g. someone isn't there).
+  // Players go back to the queue without a game counted, and the court is
+  // left empty so the same four aren't immediately reassigned; the host marks
+  // whoever is missing, which triggers allocation again.
+  cancelAssignment(sessionId, courtId) {
+    this.assertActive(sessionId);
+    const s = prepareStatements();
+    const courtInUse = s.getCourtInUse.get(sessionId, courtId);
+    if (!courtInUse) throw httpError(404, 'No match assigned to this court');
+    if (courtInUse.match_started_at) throw new Error('Match already started. End it instead.');
+
+    const playerIds = s.getMatchPlayerIds.all(courtInUse.id).map(r => r.player_id);
+    db.transaction(() => {
+      if (playerIds.length > 0) {
+        const placeholders = playerIds.map(() => '?').join(',');
+        db.prepare(`UPDATE players SET status = 'waiting' WHERE id IN (${placeholders})`).run(...playerIds);
+      }
+      s.deleteCourtInUse.run(courtInUse.id); // match_players rows cascade
+    })();
+    this.broadcastSessionState(sessionId);
+  },
+
   // Begin the match timer on a court (START GAME pressed)
   beginMatch(sessionId, courtId) {
     this.assertActive(sessionId);
@@ -622,12 +546,14 @@ const sessionService = {
 
     const courtInUse = s.getCourtInUse.get(sessionId, courtId);
     if (!courtInUse) throw new Error('No active match on this court');
+    // An unstarted match would count as a game played for all four players
+    if (!courtInUse.match_started_at) {
+      throw new Error("This match hasn't started. Start it, or cancel the assignment.");
+    }
 
     const playerRows = s.getMatchPlayerIds.all(courtInUse.id);
     const playerIds = playerRows.map(r => r.player_id);
-    const durationMs = courtInUse.match_started_at
-      ? Date.now() - courtInUse.match_started_at
-      : 0;
+    const durationMs = Date.now() - courtInUse.match_started_at;
 
     const finishMatch = db.transaction(() => {
       const historyResult = s.insertMatchHistory.run(sessionId, courtId, durationMs);
@@ -732,6 +658,21 @@ const sessionService = {
       match.players = playerRows;
     }
     return matches;
+  },
+
+  // When play actually happened: earliest arrival or match start, to the last
+  // match completed (or now if nothing finished yet). Null if nobody arrived.
+  getPlaySpan(sessionId) {
+    const row = db.prepare(
+      `SELECT
+         (SELECT MIN(arrived_at) FROM players WHERE session_id = ? AND arrived_at IS NOT NULL) AS firstArrival,
+         (SELECT MIN(completed_at - duration_ms) FROM match_history WHERE session_id = ?) AS firstMatch,
+         (SELECT MAX(completed_at) FROM match_history WHERE session_id = ?) AS lastMatch`
+    ).get(sessionId, sessionId, sessionId);
+    const starts = [row.firstArrival, row.firstMatch].filter(v => v != null);
+    if (starts.length === 0) return null;
+    const start = Math.min(...starts);
+    return { start, end: Math.max(start, row.lastMatch || Date.now()) };
   },
 
   // Session stats
