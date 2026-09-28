@@ -1,6 +1,7 @@
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const { planAssignments, sortByFairness, nextCourtName } = require('./allocation');
+const { notifyCourtReady } = require('./notify');
 
 let io;
 
@@ -473,8 +474,19 @@ const sessionService = {
     return games.map((game, i) => {
       const assignment = { courtId: courts[i].id, courtName: courts[i].name, ...game };
       this.startCourt(sessionId, assignment.courtId, game.teamA, game.teamB);
+      this._announceCourt(sessionId, courts[i], game.players);
       return assignment;
     });
+  },
+
+  // Tell the room (in-app toast) and the players' phones (push) who's up
+  _announceCourt(sessionId, court, players) {
+    io.to(`session:${sessionId}`).emit(`session:${sessionId}:court-assigned`, {
+      courtName: court.name,
+      playerNames: players.map(p => p.name),
+    });
+    const base = process.env.PUBLIC_URL;
+    notifyCourtReady(court, players, base ? base.replace(/\/$/, '') + '/session/' + sessionId : null);
   },
 
   // Assign players to a court (pre-game: match_started_at = null)
@@ -524,6 +536,36 @@ const sessionService = {
       }
       s.deleteCourtInUse.run(courtInUse.id); // match_players rows cascade
     })();
+    this.broadcastSessionState(sessionId);
+  },
+
+  // Replace one player on a court with someone from the queue (no-show,
+  // injury, wrong level). Works before or during a match; the player leaving
+  // goes back to the queue with no game counted, the sub takes their team slot.
+  swapPlayer(sessionId, courtId, outPlayerId, inPlayerId) {
+    this.assertActive(sessionId);
+    const s = prepareStatements();
+    const courtInUse = s.getCourtInUse.get(sessionId, courtId);
+    if (!courtInUse) throw httpError(404, 'No match on this court');
+
+    const onCourt = s.getMatchPlayerIds.all(courtInUse.id).map(r => r.player_id);
+    if (!onCourt.includes(Number(outPlayerId))) throw httpError(404, 'That player is not on this court');
+
+    const sub = this.getPlayer(inPlayerId, sessionId);
+    if (!sub) throw httpError(404, 'Substitute not found in this session');
+    if (!ALLOCATABLE_STATUSES.includes(sub.status) || !sub.arrived_at) {
+      throw new Error(`${sub.name} isn't in the queue, so can't be subbed in`);
+    }
+
+    db.transaction(() => {
+      db.prepare('UPDATE match_players SET player_id = ? WHERE court_in_use_id = ? AND player_id = ?')
+        .run(sub.id, courtInUse.id, Number(outPlayerId));
+      s.updatePlayerStatus.run('waiting', Number(outPlayerId));
+      s.updatePlayerStatus.run('playing', sub.id);
+    })();
+
+    const court = this.getSessionCourts(sessionId).find(c => c.id === Number(courtId));
+    if (court) this._announceCourt(sessionId, court, [sub]);
     this.broadcastSessionState(sessionId);
   },
 

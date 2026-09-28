@@ -260,6 +260,13 @@
         <div id="earlyBirdsList"></div>
       </div>
 
+      <% if (ONESIGNAL_APP_ID) { %>
+      <button id="notifyBtn" type="button" class="btn-bbq btn-bbq-outline" style="width:100%; margin-top:16px;" onclick="enablePush()">
+        <i class="bi bi-bell"></i> Notify me when I'm up
+      </button>
+      <div id="notifyStatus" style="display:none; margin-top:8px; font-size:var(--text-sm); color:var(--text-muted); text-align:center;"></div>
+      <% } %>
+
       <a id="viewGameLink" href="#" class="btn-bbq btn-bbq-primary" style="width:100%; margin-top:16px;">
         <i class="bi bi-eye"></i> View Game
       </a>
@@ -331,6 +338,13 @@
 
         // Already checked in?
         if (player.arrived_at) {
+          // Check-in is idempotent; repeating it lets this device manage the
+          // player's own break/leave status (sets the device cookie)
+          fetch('/api/players/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: parseInt(sessionId), playerId: existing.playerId })
+          }).catch(() => {});
           // Show arrived state directly
           const arrivalOrder = arrived
             .sort((a, b) => a.arrived_at - b.arrived_at);
@@ -503,6 +517,26 @@
       }
 
       showState('arrivedState');
+    }
+
+    // Link this device to the player in OneSignal and ask for permission, so
+    // the server can push "you're up" when they're put on a court
+    function enablePush() {
+      const existing = getRegisteredPlayer();
+      const statusEl = document.getElementById('notifyStatus');
+      if (!existing || !window.OneSignalDeferred) return;
+      OneSignalDeferred.push(async function (OneSignal) {
+        try {
+          await OneSignal.login('bbq-player-' + existing.playerId);
+          await OneSignal.Notifications.requestPermission();
+          statusEl.textContent = OneSignal.Notifications.permission
+            ? "You'll get a notification when you're put on a court."
+            : 'Notifications are blocked. Allow them in your browser settings to get alerts.';
+        } catch {
+          statusEl.textContent = 'Could not turn on notifications on this device.';
+        }
+        statusEl.style.display = '';
+      });
     }
 
     function ordinal(n) {

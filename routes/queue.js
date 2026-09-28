@@ -52,6 +52,20 @@ router.post('/:courtId/cancel', requireHost, (req, res) => {
   }
 });
 
+// Swap a player on a court for someone in the queue (host only)
+router.post('/:courtId/swap', requireHost, (req, res) => {
+  try {
+    const { sessionId, outPlayerId, inPlayerId } = req.body;
+    if (!outPlayerId || !inPlayerId) {
+      return res.status(400).json({ error: 'Player to swap out and substitute are required' });
+    }
+    sessionService.swapPlayer(sessionId, req.params.courtId, outPlayerId, inPlayerId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
 // Record score for a completed match (host only)
 router.post('/score/:matchId', requireHost, (req, res) => {
   try {
